@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="{{url_for('static',filename='css/main.css')}}">
+{% endblock %}
+
+{% block content %}
+<div class='container'>
+	<div class='page-header'>
+		<h1>{{ item.name }}</h1>
+ 	</div>
+
+ 	<div class="element1">{{script | safe}}{{div | safe}}</div><div class="element2">Текущая цена: <b>{{ calculate_price(item.price) }}</b></div><div class="element3">{% if item.image == None %}<img src="{{ url_for('static', filename='img/photo.jpg') }}" />{% elif item.image %}<img src="{{ item.image }}" width="200"/>{% endif %}</div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+
+<script type="text/javascript" src="{{cdn_js | safe}}"></script>
+
+{% endblock %}

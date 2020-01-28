@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% import 'bootstrap/wtf.html' as wtf %}
+
+{% block title %}Main page{{ super() }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="{{url_for('static',filename='css/main.css')}}">
+
+{% endblock %}
+
+{% block content %}
+<div class='container'>
+    {% for message in get_flashed_messages() %}
+    <div class="alert alert-warning">
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+        {{ message }}
+    </div>
+    {% endfor %}
+
+    {{ wtf.quick_form(form) }}
+    {% if items %}
+    <div class='title'>
+    <h4>Лучшие товары из категории "{{ session.get('choice') }}":</h3>
+    </div>
+    <table>
+      <tr>
+        <th>Наименование</th>
+        <th>Цена</th>
+        <th></th>
+      </tr>
+      {% for item in items %}
+      <tr>
+        <td><a href={{url_for('item', item_id=item.get('id'))}}>{{ item.get('name') }}</a></td>
+        <td>{{ calculate_price(item.get('price')) }}</td>
+        <td><a href='http://www.ozon.ru{{item.get('adress')}}'><img src="{{ item.image }}" width="25" height="25" /></a></td>
+      </tr>
+      {% endfor %}  
+    </table>
+    {% endif %}
+</div>
+
+{% endblock %}
+
