@@ -17,6 +17,7 @@ flask-script==2.0.6
 flask-sqlalchemy==2.4.1
 flask-wtf==0.14.3
 flask==1.1.1
+gunicorn==20.0.4
 idna==2.9
 itsdangerous==1.1.0
 jinja2==2.11.1

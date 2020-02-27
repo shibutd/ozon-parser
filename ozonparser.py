@@ -17,6 +17,6 @@ def make_shell_context():
 
 if __name__ == '__main__':
     scheduler = BackgroundScheduler()
-    scheduler.add_job(launch_parser, 'interval', minutes=180)
+    scheduler.add_job(launch_parser, 'interval', minutes=120)
     scheduler.start()
     app.run()
