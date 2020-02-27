@@ -8,10 +8,8 @@ class Config:
 
 class DevelopmentConfig(Config):
 	DEBUG = True
-	# SQLALCHEMY_DATABASE_URI = 'sqlite:///' + \
- #            					os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data.sqlite')
-	SQLALCHEMY_DATABASE_URI = os.getenv('DEV_DATABASE_URL', \
-										'postgresql://postgres:aMhKuJqhbzLrRe93ypCB@localhost/ozon-parser')
+	SQLALCHEMY_DATABASE_URI = os.getenv('DEV_DATABASE_URL', 'sqlite:///' + \
+            					os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data.sqlite'))
 
 
 class ProductionConfig(Config):
