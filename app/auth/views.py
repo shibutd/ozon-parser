@@ -12,7 +12,7 @@ def login():
         user = User.query.filter_by(username=form.username.data).first()
         if user is not None and user.verify_password(form.password.data):
             login_user(user)
-            return redirect(url_for('index'))
+            return redirect(url_for('main.index'))
         flash('Неверное имя пользователя или пароль')
     return render_template('login.html', form=form)
 
@@ -21,7 +21,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('index'))
+    return redirect(url_for('main.index'))
 
 
 # @auth.route('/admin', methods=['GET', 'POST'])

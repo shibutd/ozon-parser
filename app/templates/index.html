@@ -31,7 +31,7 @@
       </tr>
       {% for item in items %}
       <tr>
-        <td><a href={{url_for('item', item_id=item.get('id'))}}>{{ item.get('name') }}</a></td>
+        <td><a href={{url_for('main.item', item_id=item.get('id'))}}>{{ item.get('name') }}</a></td>
         <td>{{ calculate_price(item.get('price')) }}</td>
         <td><a href='http://www.ozon.ru{{item.get('adress')}}'><img src="{{ item.image }}" width="25" height="25" /></a></td>
       </tr>

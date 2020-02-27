@@ -48,7 +48,7 @@ def index():
         
         if session['adress'] == '' and session['choice'] == 0:
             flash('Необходимо ввести данные')
-            return redirect(url_for('index'))
+            return redirect(url_for('main.index'))
         elif session['adress'] == '' and session['choice'] != 0:
             category = Category.query.filter_by(id=session['choice']).first()
             session['choice'] = category.name
@@ -60,23 +60,23 @@ def index():
             session['items'] = [{'name': item.name, 'price': item.price, \
                                  'adress': item.adress, 'image': item.image, \
                                  'id': re.search('\d+', str(item.adress)).group(0)} for item in items]
-            return redirect(url_for('index'))
+            return redirect(url_for('main.index'))
         elif session['adress'] != '':
             try:
                 adress = re.search('id/\d+', str(session['adress'])).group(0)
             except:
                 flash('Неверный формат, попробуйте еще раз')
-                return redirect(url_for('index'))
+                return redirect(url_for('main.index'))
             adress = '/context/detail/' + adress + '/'
             item = Item.query.filter_by(adress=adress).first()
             if item is None:
                 flash('Извините, товар не найден')
-                return redirect(url_for('index'))
+                return redirect(url_for('main.index'))
             else:
                 id = re.search('\d+', str(item.adress)).group(0)
-                return redirect(url_for('item', item_id=id))
+                return redirect(url_for('main.item', item_id=id))
         else:
-            return redirect(url_for('index'))
+            return redirect(url_for('main.index'))
     return render_template('index.html', form=form, items=session.pop('items', None))
 
 
