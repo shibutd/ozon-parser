@@ -42,6 +42,8 @@ PyYAML = "*"
 SQLAlchemy = "*"
 Werkzeug = "*"
 WTForms = "*"
+apscheduler = "*"
+psycopg2 = "*"
 
 [dev-packages]
 
