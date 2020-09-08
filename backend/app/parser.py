@@ -12,7 +12,6 @@ class Parser:
         self.source = 'http://ozon.ru'
         self.categories = list()
 
-
     def get_soup(self, source=None):
         if source is None:
             source = self.source
@@ -21,7 +20,6 @@ class Parser:
         r = requests.get(source, headers={'User-Agent': self.ua.random})
         c = r.content
         return BeautifulSoup(c, 'html.parser')
-
 
     def get_categories(self):
         soup = self.get_soup()
@@ -38,7 +36,6 @@ class Parser:
                 self.categories.append(category)
         return self.categories
 
-
     def get_subcategories(self, category):
         soup = self.get_soup(source=category)
         all = soup.find_all(href=re.compile('category'))
@@ -54,9 +51,9 @@ class Parser:
             if subcategory['Adress'] and \
             subcategory['Adress'] not in [d.get('Adress') for d in self.categories] and \
             subcategory['Adress'] not in [d.get('Adress') for d in subcategories]:
+                print(subcategory)
                 subcategories.append(subcategory)
         return subcategories
-
 
     def get_items(self, subcategory):
         page_num = 1
@@ -68,7 +65,8 @@ class Parser:
                 items_added = 0
                 item = dict()
                 try:
-                    item['Name'] = tag.find('span', {'data-test-id': 'tile-name'}).text.replace('\n', '').strip()
+                    item['Name'] = tag.find('span', {'data-test-id': 'tile-name'}).\
+                    text.replace('\n', '').strip()
                 except:
                     item['Name'] = None
                 try:
@@ -86,8 +84,10 @@ class Parser:
                 except:
                     item['Adress'] = None
                 if item['Name'] and item['Price'] and item['Image'] and item['Adress']:
+                    print(item)
                     items_added += 1
                     if item.get('Price') > 10000:
+                        print('added')
                         items.append(item)
             if items_added == 0 or page_num == 1000:
                 break
@@ -99,7 +99,7 @@ class Parser:
 def launch_parser():
     parser = Parser()
     categories = parser.get_categories()
-    for category in categories[3:4]: ###
+    for category in categories[:2]: ###
         category_ = Category.query.filter_by(adress=category.get('Adress')).first()
         if category_ is None:
             category_ = Category(name=category.get('Name'), adress=category.get('Adress'))
@@ -118,13 +118,12 @@ def launch_parser():
             for item in items:
                 item_ = Item.query.filter_by(adress=item.get('Adress')).first()
                 if item_ is None:
-
-                    item_ = Item(name=item.get('Name'), \
-                                 adress=item.get('Adress'), \
-                                 price=str(item.get('Price')), \
-                                 image=item.get('Image'), \
-                                 category_id=category_.id, \
-                                 subcategory_id=subcategory_.id)
+                    item_ = Item(name=item.get('Name'), 
+                        adress=item.get('Adress'), 
+                        price=str(item.get('Price')),
+                        image=item.get('Image'),
+                        category_id=category_.id, 
+                        subcategory_id=subcategory_.id)
                     db.session.add(item_)
                     db.session.commit()
                 else:

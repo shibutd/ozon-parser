@@ -1,5 +1,6 @@
-venv/
 __pycache__/
 *.py[cod]
-requirements - old.txt
-database.txt
+*.sqlite
+migrations/*
+sample_data.csv
+tmp/
