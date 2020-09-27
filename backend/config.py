@@ -16,19 +16,23 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
     # SQLALCHEMY_ECHO = True
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        'DEV_DATABASE_URL',
-        'sqlite:///{}'.format(
-            os.path.join(BASE_DIR, 'data.sqlite'))
+    SQLALCHEMY_DATABASE_URI = "postgresql://{DB_USER}:{DB_PASSWORD}@\
+{DB_ADDR}/{DB_NAME}".format(
+        DB_USER="postgres",
+        DB_PASSWORD=os.getenv('DB_PASSWORD', ''),
+        DB_ADDR="127.0.0.1",
+        DB_NAME="ozon_parser"
     )
 
 
 class TestingConfig(Config):
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        'DEV_DATABASE_URL',
-        'sqlite:///{}'.format(
-            os.path.join(BASE_DIR, 'test_data.sqlite'))
+    SQLALCHEMY_DATABASE_URI = "postgresql://{DB_USER}:{DB_PASSWORD}@\
+{DB_ADDR}/{DB_NAME}".format(
+        DB_USER="postgres",
+        DB_PASSWORD=os.getenv('DB_PASSWORD', ''),
+        DB_ADDR="127.0.0.1",
+        DB_NAME="ozon_parser_test"
     )
     SERVER_NAME = '127.0.0.1:5000'
 
@@ -38,7 +42,7 @@ class ProductionConfig(Config):
     SQLALCHEMY_DATABASE_URI = "postgresql://{DB_USER}:{DB_PASSWORD}@\
 {DB_ADDR}/{DB_NAME}".format(
         DB_USER="user_name",
-        DB_PASSWORD="password",
+        DB_PASSWORD=os.getenv('DB_PASSWORD', ''),
         DB_ADDR="127.0.0.1",
         DB_NAME="db_name"
     )

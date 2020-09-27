@@ -1,6 +1,5 @@
 __pycache__/
 *.py[cod]
 *.sqlite
-migrations/*
-sample_data.csv
+sample_data.json
 tmp/

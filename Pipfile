@@ -14,6 +14,11 @@ flask-marshmallow = "*"
 psycopg2 = "*"
 factory-boy = "*"
 coverage = "*"
+beautifulsoup4 = "*"
+fake-useragent = "*"
+sqlalchemy-utils = "*"
+httpx = "*"
+lxml = "*"
 
 [dev-packages]
 

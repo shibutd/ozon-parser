@@ -1,10 +1,10 @@
 import sys
-import csv
+import json
 from collections import Counter
 import click
 from flask import Blueprint
-from . import db
-from app.models import Category, Subcategory, Item, Price
+from app import db
+from app.models import Category, Item, Price
 
 
 cmd_bp = Blueprint('cmd', __name__)
@@ -17,64 +17,85 @@ def get_or_create(session, model, **kwargs):
     else:
         instance = model(**kwargs)
         session.add(instance)
-        session.commit()
         return instance, True
+
+
+def create_prices(prices_list, item):
+    for price_dict in prices_list:
+        price_dict.update({'item_id': item.id})
+    db.session.bulk_insert_mappings(Price, prices_list)
+
+
+def create_items(items_list, counter, category):
+    for item_dict in items_list:
+        item, created = get_or_create(
+            db.session,
+            Item,
+            name=item_dict['name'],
+            external_id=item_dict['externalId'],
+            category=category,
+        )
+        counter['items'] += 1
+        if created:
+            counter['items_created'] += 1
+
+        if 'prices' in item_dict:
+            db.session.flush()
+            create_prices(item_dict['prices'], item)
+
+
+def create_categories(categories_list, counter, parent=None):
+    for category_dict in categories_list:
+        category, created = get_or_create(
+            db.session,
+            Category,
+            name=category_dict['name'],
+            url=category_dict['url'],
+            parent=parent
+        )
+        counter['categories'] += 1
+        if created:
+            counter['categories_created'] += 1
+
+        if 'children' in category_dict:
+            create_categories(
+                category_dict['children'],
+                counter=counter,
+                parent=category
+            )
+
+        if 'items' in category_dict:
+            create_items(
+                category_dict['items'],
+                counter=counter,
+                category=category
+            )
 
 
 @cmd_bp.cli.command()
 @click.argument('path')
 def import_data(path):
-    """Import data from .csv file."""
-    print('Importing products...', file=sys.stdout)
-
+    """Import data from .json file."""
     try:
-        csvfile = open(path, 'r')
+        with open(path, 'r') as jsonfile:
+            loaded_json = json.load(jsonfile)
+
     except FileNotFoundError:
         print('File not found: {}'.format(path), file=sys.stdout)
         sys.exit()
 
+    print('Importing data...', file=sys.stdout)
+
     c = Counter()
-    reader = csv.DictReader(csvfile, delimiter=';')
 
-    for row in reader:
-        # proceeding categories
-        category, created = get_or_create(
-            db.session,
-            Category,
-            name=row['category']
-        )
-        c['categories'] += 1
-        if created:
-            c['categories_created'] += 1
+    try:
+        create_categories(loaded_json, counter=c)
+    except Exception as e:
+        db.session.rollback()
+        print('Error occured while importing data: {}'.format(e), file=sys.stdout)
+        sys.exit()
 
-        # proceeding subcategories
-        subcategory, created = get_or_create(
-            db.session,
-            Subcategory,
-            name=row['subcategory'],
-            category_id=category.id
-        )
-        c['subcategories'] += 1
-        if created:
-            c['subcategories_created'] += 1
-
-        # proceeding items
-        item, created = get_or_create(
-            db.session,
-            Item,
-            name=row['item'],
-            external_id=row['external_id'],
-            subcategory_id=subcategory.id,
-        )
-        c['items'] += 1
-        if created:
-            c['items_created'] += 1
-
-        # proceeding prices
-        for price in row["prices"].split("|"):
-            db.session.add(
-                Price(value=price, item_id=item.id))
-            db.session.commit()
+    db.session.commit()
 
     print(
         "Categories processed={0} (created={1})".format(
@@ -82,14 +103,7 @@ def import_data(path):
         file=sys.stdout
     )
     print(
-        "Subcategories processed={0} (created={1})".format(
-            c["subcategories"], c["subcategories_created"]),
-        file=sys.stdout
-    )
-    print(
         "Items processed={0} (created={1})".format(
             c["items"], c["items_created"]),
         file=sys.stdout
     )
-
-    csvfile.close()

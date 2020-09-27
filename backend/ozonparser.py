@@ -2,7 +2,7 @@ import os
 import click
 from flask_migrate import Migrate
 from app import create_app, db
-from app.models import Category, Subcategory, Item, Price
+from app.models import Category, Item, Price
 
 
 app = create_app(os.getenv('FLASK_CONFIG', 'dev'))
@@ -13,7 +13,6 @@ migrate = Migrate(app, db)
 def make_shell_context():
     return dict(db=db,
                 Category=Category,
-                Subcategory=Subcategory,
                 Item=Item,
                 Price=Price)
 

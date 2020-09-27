@@ -1,132 +1,199 @@
 import re
-import requests
+import json
+from abc import ABC, abstractmethod
+import asyncio
+import httpx
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
-from . import db
-from .models import Category, Subcategory, Item
 
 
-class Parser:
+class Parser(ABC):
+    BASE_URL = 'https://ozon.ru'
+
     def __init__(self):
-        self.ua = UserAgent()
-        self.source = 'http://ozon.ru'
-        self.categories = list()
+        self.user_agent = UserAgent()
 
-    def get_soup(self, source=None):
-        if source is None:
-            source = self.source
-        else:
-            source = self.source + source
-        r = requests.get(source, headers={'User-Agent': self.ua.random})
-        c = r.content
-        return BeautifulSoup(c, 'html.parser')
+    async def fetch(self, session, url):
+        headers = {'User-Agent': self.user_agent.random}
+        response = await session.get(url, headers=headers)
+        return url, response
 
-    def get_categories(self):
-        soup = self.get_soup()
-        all = soup.find_all(href=re.compile('category'))
-        for tag in all:
-            category = dict()
-            try:
-                category['Name'] = tag.find('span').text.replace('\n', '').strip()
-            except:
-                category['Name'] = None
-            category['Adress'] = re.search('/category/.*\d{4,5}/', str(tag)).group(0)
-            if category['Name'] and category['Adress'] and \
-            category['Adress'] not in [d.get('Adress') for d in self.categories]:
-                self.categories.append(category)
-        return self.categories
+    async def fetch_pages_content(self, links):
+        tasks = []
+        limits = httpx.Limits(max_keepalive=5, max_connections=10)
 
-    def get_subcategories(self, category):
-        soup = self.get_soup(source=category)
-        all = soup.find_all(href=re.compile('category'))
-        subcategories = list()
-        for tag in all:
-            subcategory = dict()
-            try:
-                subcategory['Adress'] = re.search('/category/.*-\d{4,5}/', str(tag)).group(0)
-                subcategory['Name'] = re.search('[a-z-]+-\d', subcategory.get('Adress')).group(0)[:-2]
-            except:
-                subcategory['Adress'] = None
-                subcategory['Name'] = None
-            if subcategory['Adress'] and \
-            subcategory['Adress'] not in [d.get('Adress') for d in self.categories] and \
-            subcategory['Adress'] not in [d.get('Adress') for d in subcategories]:
-                print(subcategory)
-                subcategories.append(subcategory)
-        return subcategories
+        async with httpx.AsyncClient(limits=limits) as session:
+            for link in links:
+                tasks.append(
+                    asyncio.create_task(
+                        self.fetch(session, link)
+                    ))
 
-    def get_items(self, subcategory):
-        page_num = 1
-        items = list()
-        while True:
-            soup = self.get_soup(source=subcategory + f'?page={page_num}')
-            all = soup.find_all(href=re.compile('context'))
-            for tag in all:
-                items_added = 0
-                item = dict()
-                try:
-                    item['Name'] = tag.find('span', {'data-test-id': 'tile-name'}).\
-                    text.replace('\n', '').strip()
-                except:
-                    item['Name'] = None
-                try:
-                    item['Price'] = tag.find('span', {'data-test-id': 'tile-price'}).text.replace('\n', '').replace(u'\u2009', '').strip()[:-1]
-                    item['Price'] = int(item['Price'])
-                except:
-                    item['Price'] = float('nan')
-                try:
-                    img = tag.find('img')
-                    item['Image'] = re.search('http.*jpg"', str(img)).group(0)[:-1]
-                except:
-                    item['Image'] = None
-                try:
-                    item['Adress'] = re.search('/context/detail/id/\d+/', str(tag)).group(0)
-                except:
-                    item['Adress'] = None
-                if item['Name'] and item['Price'] and item['Image'] and item['Adress']:
-                    print(item)
-                    items_added += 1
-                    if item.get('Price') > 10000:
-                        print('added')
-                        items.append(item)
-            if items_added == 0 or page_num == 1000:
+            tags = []
+            for task_result in asyncio.as_completed(tasks):
+                fetched_content = await task_result
+                url, response = fetched_content
+                page_content = self.parse(response.text)
+
+                tags.append({url: page_content})
+
+            return tags
+
+    @abstractmethod
+    def parse(self, page_content):
+        pass
+
+
+class CategoryParser(Parser):
+    PATTERN = 'catalogMenu'
+
+    def process_pattern(self, page_json):
+        page_content = []
+
+        for category in page_json['categories']:
+            category_dict = {
+                'name': category['title'].replace('\xa0', ' '),
+                'url': category['url']
+            }
+            page_content.append(category_dict)
+
+        return page_content
+
+    def parse(self, page_content):
+        soup = BeautifulSoup(page_content, 'lxml')
+
+        tag = soup.find(id=re.compile(self.PATTERN))
+        tag_content = tag['data-state']
+        page_json = json.loads(tag_content)
+
+        page_content = self.process_pattern(page_json)
+        return page_content
+
+    async def retrieve_categories(self):
+        # Retrieve categories
+        urls = [self.BASE_URL]
+        categories = await self.fetch_pages_content(urls)
+
+        return categories
+
+
+class SubcategoryParser(Parser):
+    PATTERNS = ['searchCategorySubtree', 'catalogHorizontalMenu', 'objectLine']
+
+    def process_subtree_pattern(self, page_json):
+        page_content = []
+
+        for category in page_json['categories'][0]['categories']:
+            category_dict = {
+                'name': category['info']['name'].capitalize(),
+                'url': '/category/{}'.format(category['info']['urlValue']),
+                'sections': []
+            }
+
+            for section in category['categories']:
+                category_dict['sections'].append(
+                    {
+                        'name': section['info']['name'],
+                        'url': '/category/{}'.format(section['info']['urlValue'])
+                    }
+                )
+
+            page_content.append(category_dict)
+
+        return page_content
+
+    def process_horizontalmenu_pattern(self, page_json):
+        page_content = []
+
+        for category in page_json['categories']:
+            if 'section' in category and 'url' in category and \
+                    category['url'].startswith('/category'):
+
+                category_dict = {
+                    'name': category['title'].capitalize(),
+                    'url': category['url'],
+                    'sections': []
+                }
+
+                for section in category['section']:
+                    if 'title' in section and 'url' in section and \
+                            section['title'].replace(' ', '') and \
+                            section['url'].replace(' ', '') and \
+                            section['url'].startswith('/category'):
+
+                        category_dict['sections'].append(
+                            {
+                                'name': section['title'].replace('\xa0', ' '),
+                                'url': section['url']
+                            }
+                        )
+
+                page_content.append(category_dict)
+
+        # remove repeating values of 'sections'
+        for item in page_content:
+            sections = item['sections']
+
+            values = {item['url'] for item in sections}
+            if len(sections) > len(values):
+                sections_temp = []
+                for item in sections:
+                    if item['url'] in values:
+                        values.remove(item['url'])
+
+                        name = item['name']
+                        idx = name.find('по')
+                        if idx != -1:
+                            item['name'] = name[:idx - 1]
+
+                    sections_temp.append(item)
+
+            sections = sections_temp
+
+        return page_content
+
+    def process_objectline_pattern(self, page_json):
+        page_content = []
+
+        for category in page_json['items']:
+            if 'title' in category and 'link' in category:
+                category_dict = {
+                    'name': category['title'],
+                    'url': category['link']
+                }
+                page_content.append(category_dict)
+
+        return page_content
+
+    def parse(self, page_content):
+        soup = BeautifulSoup(page_content, 'lxml')
+
+        for pattern in self.PATTERNS:
+            tag = soup.find(id=re.compile(pattern))
+            if tag:
                 break
-            else:
-                page_num += 1
-        return items
+        else:
+            return []
 
+        tag_content = tag['data-state']
+        page_json = json.loads(tag_content)
 
-def launch_parser():
-    parser = Parser()
-    categories = parser.get_categories()
-    for category in categories[:2]: ###
-        category_ = Category.query.filter_by(adress=category.get('Adress')).first()
-        if category_ is None:
-            category_ = Category(name=category.get('Name'), adress=category.get('Adress'))
-            db.session.add(category_)
-            db.session.commit()
-        subcategories = parser.get_subcategories(category.get('Adress'))
-        for subcategory in subcategories: ###
-            subcategory_ = Subcategory.query.filter_by(adress=subcategory.get('Adress')).first()
-            if subcategory_ is None:
-                subcategory_ = Subcategory(name=subcategory.get('Name'), \
-                                        adress=subcategory.get('Adress'), \
-                                        category_id=category_.id)
-                db.session.add(subcategory_)
-                db.session.commit()
-            items = parser.get_items(subcategory.get('Adress'))
-            for item in items:
-                item_ = Item.query.filter_by(adress=item.get('Adress')).first()
-                if item_ is None:
-                    item_ = Item(name=item.get('Name'), 
-                        adress=item.get('Adress'), 
-                        price=str(item.get('Price')),
-                        image=item.get('Image'),
-                        category_id=category_.id, 
-                        subcategory_id=subcategory_.id)
-                    db.session.add(item_)
-                    db.session.commit()
-                else:
-                    item_.price = item_.price + ' ' + str(item.get('Price'))
-                    db.session.add(item_)
-                    db.session.commit()
+        if pattern == 'searchCategorySubtree':
+            page_content = self.process_subtree_pattern(page_json)
+        elif pattern == 'catalogHorizontalMenu':
+            page_content = self.process_horizontalmenu_pattern(page_json)
+        else:  # pattern == 'objectLine'
+            page_content = self.process_objectline_pattern(page_json)
+
+        return page_content
+
+    async def retrieve_subcategories(self, urls):
+        # Retrieve subcategories
+
+        def get_url(url):
+            return '{0}{1}'.format(self.BASE_URL, url)
+
+        full_urls = [get_url(url) for url in urls]
+        subcategories = await self.fetch_pages_content(full_urls)
+
+        return subcategories
