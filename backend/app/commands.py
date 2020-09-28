@@ -10,6 +10,9 @@ from app.models import Category, Item, Price
 cmd_bp = Blueprint('cmd', __name__)
 
 
+BASE_URL = 'https://ozon.ru'
+
+
 def get_or_create(session, model, **kwargs):
     instance = session.query(model).filter_by(**kwargs).first()
     if instance:
@@ -107,3 +110,38 @@ def import_data(path):
             c["items"], c["items_created"]),
         file=sys.stdout
     )
+
+
+@cmd_bp.cli.command()
+@click.option('-t', '--type',
+              help='Categories, subcategories or items',
+              required=True)
+def launch_parser(type):
+    if type.lower() not in ['categories', 'subcategories', 'items']:
+        print('Invalid type. Should be "categories", "subcategories" or "items"',
+              file=sys.stdout)
+        sys.exit()
+
+    if type == 'categories':
+        from .parser import CategoryParser
+        category_parser = CategoryParser()
+        categories = category_parser.retrieve_categories()
+        try:
+            db.session.bulk_save_objects(
+                [
+                    Category(
+                        name=category['name'],
+                        url=category['url'],
+                    )
+                    for category in categories
+                ]
+            )
+            db.session.commit()
+            print('Successfully parsed data and added to db', file=sys.stdout)
+
+        except Exception as e:
+            db.session.rollback()
+            print('Error occured adding data: {}'.format(e), file=sys.stdout)
+            sys.exit()
+    else:
+        raise NotImplementedError()
