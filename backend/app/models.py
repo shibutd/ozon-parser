@@ -13,9 +13,9 @@ ma = Marshmallow()
 class Category(db.Model):
     __tablename__ = 'categories'
 
-    name = db.Column(db.String(64), nullable=False)
-    slug = db.Column(db.String(64), primary_key=True)
-    url = db.Column(db.String(64), unique=True, nullable=False)
+    name = db.Column(db.String(128), nullable=False)
+    slug = db.Column(db.String(128), primary_key=True)
+    url = db.Column(db.String(128), unique=True, nullable=False)
     path = db.Column(LtreeType, nullable=False)
     parent = db.relationship(
         'Category',
@@ -48,10 +48,11 @@ class Category(db.Model):
 
 class Item(db.Model):
     __tablename__ = 'items'
+
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64))
-    external_id = db.Column(db.Integer, unique=True)
-    image_url = db.Column(db.String(64))
+    name = db.Column(db.String(128), nullable=False)
+    url = db.Column(db.String(128), unique=True, nullable=False)
+    image_url = db.Column(db.String(128))
     category_slug = db.Column(
         db.String(64), db.ForeignKey('categories.slug', ondelete='CASCADE'),
         nullable=False
@@ -62,15 +63,22 @@ class Item(db.Model):
     )
     prices = db.relationship('Price', backref='item', lazy=True)
 
+    def __init__(self, *args, **kwargs):
+        if 'id' not in kwargs:
+            url = kwargs.get('url')
+            id = re.search('^\/.+[\/-](\d+)\/$', url).group(1)
+            kwargs['id'] = id
+        super().__init__(*args, **kwargs)
+
     def __repr__(self):
         return '<Item %r>' % self.name
 
 
 class Price(db.Model):
     __tablename__ = 'prices'
+
     id = db.Column(db.Integer, primary_key=True)
-    value = db.Column(
-        db.Numeric(precision=2, asdecimal=False, decimal_return_scale=None))
+    value = db.Column(db.Integer)
     date = db.Column(
         db.Date(),
         default=datetime.datetime.now,

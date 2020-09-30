@@ -23,6 +23,7 @@ class DevelopmentConfig(Config):
         DB_ADDR="127.0.0.1",
         DB_NAME="ozon_parser"
     )
+    # SQLALCHEMY_ECHO = True
 
 
 class TestingConfig(Config):

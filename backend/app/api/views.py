@@ -1,6 +1,7 @@
 from flask import request
 from flask_restful import Resource, reqparse
 from sqlalchemy.sql import expression
+from sqlalchemy.orm import joinedload
 from sqlalchemy_utils.types.ltree import LQUERY
 from app import db
 from app.models import Category, Item, CategorySchema, ItemSchema
@@ -61,12 +62,14 @@ class ItemListResource(Resource):
         )
 
         results = pagination_helper.paginate_query()
+
         return results
 
 
 class ItemResource(Resource):
 
     def get(self, id):
-        item = Item.query.get_or_404(id)
+        item = Item.query.options(
+            joinedload('prices')).get_or_404(id)
         result = item_schema.dump(item)
         return result

@@ -1,14 +1,16 @@
-from abc import ABC, abstractmethod
 import re
 import json
+import time
 import asyncio
+import concurrent.futures
+from abc import ABC, abstractmethod
+from pathlib import Path
 import httpx
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 
 
 class Parser(ABC):
-    BASE_URL = 'https://ozon.ru'
 
     def __init__(self):
         self.user_agent = UserAgent()
@@ -20,7 +22,8 @@ class Parser(ABC):
 
     async def fetch_pages_content(self, urls):
         tasks = []
-        limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
+        limits = httpx.Limits(max_keepalive_connections=5,
+                              max_connections=10)
 
         async with httpx.AsyncClient(limits=limits) as session:
             for url in urls:
@@ -70,17 +73,18 @@ class CategoryParser(Parser):
 
         return page_content
 
-    def retrieve_categories(self):
+    def retrieve_categories(self, url):
         # Retrieve categories
-        urls = [self.BASE_URL]
-
-        categories = asyncio.run(self.fetch_pages_content(urls))
-
-        return categories[0][self.BASE_URL]
+        categories = asyncio.run(self.fetch_pages_content([url]))
+        return categories
 
 
 class SubcategoryParser(Parser):
-    PATTERNS = ['searchCategorySubtree', 'catalogHorizontalMenu', 'objectLine']
+    PATTERNS = [
+        'searchCategorySubtree',
+        'catalogHorizontalMenu',
+        'objectLine'
+    ]
 
     def process_subtree_pattern(self, page_json):
         page_content = []
@@ -96,7 +100,8 @@ class SubcategoryParser(Parser):
                 category_dict['sections'].append(
                     {
                         'name': section['info']['name'],
-                        'url': '/category/{}'.format(section['info']['urlValue'])
+                        'url': '/category/{}'.format(
+                            section['info']['urlValue'])
                     }
                 )
 
@@ -128,7 +133,7 @@ class SubcategoryParser(Parser):
 
                 new_sections.append(section)
             return new_sections
-        return section
+        return sections
 
     def process_horizontalmenu_pattern(self, page_json):
         page_content = []
@@ -192,22 +197,128 @@ class SubcategoryParser(Parser):
         tag_content = tag['data-state']
         page_json = json.loads(tag_content)
 
-        pattern_function = {
+        process_functions = {
             'searchCategorySubtree': self.process_subtree_pattern,
             'catalogHorizontalMenu': self.process_horizontalmenu_pattern,
             'objectLine': self.process_objectline_pattern
         }
 
-        function = pattern_function[pattern]
+        function = process_functions[pattern]
         page_content = function(page_json)
         return page_content
 
-    async def retrieve_subcategories(self, urls):
+    def retrieve_subcategories(self, urls):
         # Retrieve subcategories
-        def get_url(url):
-            return '{0}{1}'.format(self.BASE_URL, url)
-
-        full_urls = [get_url(url) for url in urls]
-        subcategories = await self.fetch_pages_content(full_urls)
-
+        subcategories = asyncio.run(self.fetch_pages_content(urls))
         return subcategories
+
+
+class ItemsParser(Parser):
+    LOAD_PAGE_PAUSE_TIME = 5
+    SCROLL_PAUSE_TIME = 3
+    WORKERS = 5
+    MAX_PAGE_NUMBER = 100
+
+    def __init__(self):
+        driver_path = Path(__file__).parent.parent / 'chromedriver.exe'
+        self.executable_path = {'executable_path': str(driver_path)}
+        self.user_agent = UserAgent()
+
+    def get_browser(self):
+        browser = None
+        return browser
+
+    def scroll_down_page(self, browser):
+        # Get scroll height
+        last_height = browser.execute_script(
+            "return document.body.scrollHeight")
+
+        while True:
+            browser.execute_script(
+                "window.scrollTo(0, document.body.scrollHeight);")
+            # Wait to load page
+            time.sleep(self.SCROLL_PAUSE_TIME)
+            # Calculate new scroll height and compare with last scroll height
+            new_height = browser.execute_script(
+                "return document.body.scrollHeight")
+            if new_height == last_height:
+                break
+            last_height = new_height
+
+    def get_page_items(self, url):
+        browser = self.get_browser()
+        browser.visit(url)
+        time.sleep(self.LOAD_PAGE_PAUSE_TIME)
+
+        self.scroll_down_page(browser)
+
+        items = self.parse(browser.html)
+        return items
+
+    def process_tags(tags):
+        items = []
+        for tag in tags:
+            inner_tags = tag.find_all(href=re.compile('context')) \
+                or tag.find_all(href=re.compile('product'))
+            try:
+                item = {}
+                item['external_url'] = inner_tags[0]['href']
+
+                img = inner_tags[0].find('img')
+                item['image_url'] = img['src']
+
+                item['name'] = inner_tags[1].text
+
+                price = inner_tags[-1].find('span')
+                item['price'] = int(price.text.replace('\u2009', '')[:-1])
+
+                items.append(item)
+
+            except Exception:
+                continue
+
+        return items
+
+    def parse(self, page_html):
+        soup = BeautifulSoup(page_html, 'lxml')
+        tags_containers = soup.select('div.widget-search-result-container')
+
+        tags_for_page = []
+        for tags_container in tags_containers:
+            for style in ['grid-column-start:span 12;background-color:;',
+                          'grid-column-start: span 12;']:
+                tags = tags_container.find_all('div', attrs={'style': style})
+                tags_for_page.extend(tags)
+
+        items_from_tags = self.process_tags(tags_for_page)
+        return items_from_tags
+
+    def retrive_items(self, url):
+
+        def get_pages_urls(url, max_page_number):
+            urls = ['{0}?page={1}'.format(url, page)
+                    for page in range(1, max_page_number, 10)]
+            return urls
+
+        urls = get_pages_urls(url, self.MAX_PAGE_NUMBER)
+
+        # i = 1
+        all_items = []
+        futures = []
+
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=self.WORKERS) as executor:
+            for url in urls:
+                futures.append(
+                    executor.submit(self.get_page_items, url)
+                )
+
+        for future in concurrent.futures.as_completed(futures):
+            items = future.result()
+            all_items.extend(items)
+
+            if len(all_items) > 1000:
+                yield all_items
+                all_items = []
+
+        yield all_items
