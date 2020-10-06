@@ -19,6 +19,7 @@ fake-useragent = "*"
 sqlalchemy-utils = "*"
 httpx = "*"
 lxml = "*"
+selenium = "*"
 
 [dev-packages]
 
