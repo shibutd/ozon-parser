@@ -1,14 +1,34 @@
 import re
 import datetime
+
 from sqlalchemy.orm import remote, foreign
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql.expression import Insert
 from sqlalchemy_utils import LtreeType, Ltree
 from marshmallow import fields
 from flask_marshmallow import Marshmallow
+
 from app import db
 
 
 ma = Marshmallow()
 
+
+@compiles(Insert)
+def insert_ignore(insert_stmt, compiler, **kwargs):
+    '''Convert every SQL insert statement to insert_ignore:
+    INSERT INTO test (id, bar) VALUES (1, 'a')
+    becomes:
+    INSERT INTO test (id, bar) VALUES (1, 'a') ON CONFLICT(foo) DO NOTHING
+    '''
+    insert = compiler.visit_insert(insert_stmt, **kwargs)
+    if 'RETURNING' not in insert:
+        ondup = 'ON CONFLICT DO NOTHING'
+        insert = ' '.join((insert, ondup))
+    return insert
+
+
+# MODELS
 
 class Category(db.Model):
     __tablename__ = 'categories'
@@ -104,12 +124,15 @@ class CategorySchema(ma.Schema):
 class ItemSchema(ma.Schema):
     id = fields.Integer(dump_only=True)
     name = fields.String(required=True)
-    external_id = fields.Integer(required=True)
+    url = fields.String(required=True)
     image_url = fields.String(required=True)
     prices = fields.Nested('PriceSchema', many=True)
     _link = ma.URLFor('api.itemresource', id='<id>')
 
 
-class PriceSchema(ma.SQLAlchemyAutoSchema):
+class PriceSchema(ma.SQLAlchemySchema):
     class Meta:
         model = Price
+
+    value = ma.auto_field()
+    date = ma.auto_field()

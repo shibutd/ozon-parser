@@ -1,13 +1,14 @@
 import sys
 import json
 from collections import Counter
+
 import click
 from flask import Blueprint
 from sqlalchemy.sql import expression
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.sql.expression import Insert
 from sqlalchemy_utils.types.ltree import LQUERY
+
 from app import db
+from app.parser import Parser
 from app.models import Category, Item, Price
 
 
@@ -15,26 +16,6 @@ cmd_bp = Blueprint('cmd', __name__)
 
 
 BASE_URL = 'https://ozon.ru'
-
-
-@compiles(Insert)
-def insert_ignore(insert_stmt, compiler, **kwargs):
-    """Convert every SQL insert statement that returns nothing
-    to insert_ignore:
-    INSERT INTO test (id, bar) VALUES (1, 'a')
-    becomes:
-    INSERT INTO test (id, bar) VALUES (1, 'a') ON CONFLICT(foo) DO NOTHING
-    :param insert_stmt: Original insert statement
-    :param compiler: SQL Compiler
-    :param kwargs: optional arguments
-    :return: insert_ignore statement
-    """
-    insert = compiler.visit_insert(insert_stmt, **kwargs)
-    returning = kwargs.get('returning')
-    if not returning:
-        ondup = 'ON CONFLICT DO NOTHING'
-        insert = ' '.join((insert, ondup))
-    return insert
 
 
 def get_or_create(session, model, **kwargs):
@@ -137,131 +118,99 @@ def import_data(path):
     )
 
 
-@cmd_bp.cli.command()
-@click.option('-p', '--parse',
-              help='Categories, subcategories or items',
-              required=True)
-def launch_parser(parse):
-    """Parse data from 'ozon.ru' and save to db."""
-    if not isinstance(parse, str) or \
-            parse.lower() not in ['categories', 'subcategories', 'items']:
-        print('Invalid --parse type. Should be "categories", "subcategories" or "items"',
-              file=sys.stdout)
-        sys.exit()
+def get_and_create_parent_categories(parser):
+    categories = parser.get_parent_categories(BASE_URL)
+    categories = categories[0][BASE_URL]
 
-    # TODO: Parser Class Interface
-
-    if parse == 'categories':
-        from .parser import CategoryParser
-        category_parser = CategoryParser()
-        categories = category_parser.retrieve_categories(BASE_URL)
-        categories = categories[0][BASE_URL]
-        try:
-            db.session.bulk_save_objects(
-                [
-                    Category(
-                        name=category['name'],
-                        url=category['url'],
-                    )
-                    for category in categories
-                ]
+    db.session.bulk_save_objects(
+        [
+            Category(
+                name=category['name'],
+                url=category['url'],
             )
-            print('Successfully parsed data and added to db', file=sys.stdout)
+            for category in categories
+        ]
+    )
+    db.session.commit()
 
-        except Exception as e:
-            db.session.rollback()
-            print('Error occured while adding data: {}'.format(e),
-                  file=sys.stdout)
-            sys.exit()
 
+def create_subcategories(subcategories, parent_category):
+    subcategories_objs = []
+    children = []
+    for subcategory in subcategories:
+        try:
+            subcategory_obj = Category(
+                name=subcategory['name'],
+                url=subcategory['url'],
+                parent=parent_category
+            )
+        except AttributeError:
+            continue
+
+        subcategories_objs.append(subcategory_obj)
+
+        sections = subcategory.get('sections')
+        if sections:
+            children.append((sections, subcategory_obj))
+
+    db.session.bulk_save_objects(subcategories_objs)
+    for child in children:
+        subcategories, parent_category = child[0], child[1]
+        create_subcategories(subcategories, parent_category)
+
+
+def get_and_create_subcategories(parser):
+    # Get parent categories
+    parent_categories = Category.query.filter(
+        db.func.nlevel(Category.path) == 1).all()
+
+    def get_url(url):
+        return '{0}{1}'.format(BASE_URL, url)
+
+    urls = [get_url(parent_category.url)
+            for parent_category in parent_categories]
+
+    subcategories = parser.get_subcategories(urls)
+
+    with open('subcategories.json', 'w', encoding='utf-8') as f:
+        json.dump(subcategories, f, indent=2, ensure_ascii=False)
+
+    merged_subcategories = {}
+    for subcategory in subcategories:
+        merged_subcategories.update(subcategory)
+
+    for parent_category, url in zip(parent_categories, urls):
+        children = merged_subcategories[url]
+        create_subcategories(children, parent_category)
         db.session.commit()
 
-    elif parse == 'subcategories':
-        from .parser import SubcategoryParser
-        subcategory_parser = SubcategoryParser()
 
-        parent_categories = Category.query.filter(
-            db.func.nlevel(Category.path) == 1).all()
+def get_and_create_items(parser):
+    i = 1
+    # get leaves categories
+    parent_categories = Category.query.filter(
+        db.func.nlevel(Category.path) == 1).all()
 
-        def get_url(url):
-            return '{0}{1}'.format(BASE_URL, url)
+    for parent_category in parent_categories:
+        query = '%s.*{2}' % (parent_category.slug)
+        lquery = expression.cast(query, LQUERY)
 
-        urls = [get_url(parent_category.url)
-                for parent_category in parent_categories]
-        subcategories = subcategory_parser.retrieve_subcategories(urls)
+        leaf_categories = Category.query.filter(
+            Category.path.lquery(lquery)).all()
 
-        merged_subcategories = {}
-        for subcategory in subcategories:
-            merged_subcategories.update(subcategory)
+        for leaf_category in leaf_categories:
+            for items in parser.get_items(leaf_category.url):
 
-        for parent_category, url in zip(parent_categories, urls):
-            try:
-                children = merged_subcategories[url]
+                # SAVE TO .JSON FILE
+                with open('sample_{}.json'.format(i), 'w',
+                          encoding='utf-8') as f:
+                    json.dump(items, f, indent=2, ensure_ascii=False)
 
-                for child in children:
-                    child_obj = Category(
-                        name=child['name'],
-                        url=child['url'],
-                        parent=parent_category
+                    print(
+                        f'{len(items)} items saved to sample_{i}.json',
+                        file=sys.stdout
                     )
-
-                    db.session.add(child_obj)
-                    # db.session.flush()
-
-                    sections = child.get('sections')
-                    if not sections:
-                        continue
-
-                    section_objs = []
-                    for section in sections:
-                        try:
-                            section_obj = Category(
-                                name=section['name'],
-                                url=section['url'],
-                                parent=child_obj
-                            )
-                        except AttributeError:
-                            continue
-
-                        section_objs.append(section_obj)
-
-                    db.session.bulk_save_objects(section_objs)
-                    db.session.flush()
-
-            except Exception as e:
-                db.session.rollback()
-                print('Error occured while adding data: {}'.format(e),
-                      file=sys.stdout)
-                sys.exit()
-
-            db.session.commit()
-
-    else:  # --parse items
-        from .parser import ItemsParser
-        items_parser = ItemsParser()
-        i = 1
-        # get leaves categories
-        parent_categories = Category.query.filter(
-            db.func.nlevel(Category.path) == 1).all()
-
-        for parent_category in parent_categories:
-            query = '%s.*{1}' % (parent_category.slug)
-            lquery = expression.cast(query, LQUERY)
-
-            leaf_categories = Category.query.filter(
-                Category.path.lquery(lquery)).all()
-
-            for leaf_category in leaf_categories:
-                for items in items_parser.retrieve_items(leaf_category.url):
-
-                    # SAVE TO .JSON FILE
-                    with open('sample_{}.json'.format(i), 'w') as f:
-                        json.dump(items, f, indent=2)
-                        print(
-                            f'{len(items)} items saved to sample_{i}.json',
-                            file=sys.stdout
-                        )
-                        i += 1
+                    i += 1
 
                     # SAVE ITEMS TO DB
                 #     items_objs = []
@@ -286,3 +235,34 @@ def launch_parser(parse):
 
                 # db.session.bulk_insert_mappings(Price, prices)
                 # db.session.commit()
+
+
+@cmd_bp.cli.command()
+@click.option('-p', '--parse',
+              help='Categories, subcategories or items',
+              required=True)
+def launch_parser(parse):
+    """Parse data from 'ozon.ru' and save to db or .json file."""
+    if not isinstance(parse, str) or \
+            parse.lower() not in ['categories', 'subcategories', 'items']:
+        print('Invalid --parse type. Should be "categories", "subcategories" or "items"',
+              file=sys.stdout)
+        sys.exit()
+
+    parser_functions = {
+        'categories': get_and_create_parent_categories,
+        'subcategories': get_and_create_subcategories,
+        'items': get_and_create_items
+    }
+
+    function = parser_functions[parse]
+    parser = Parser()
+    try:
+        function(parser)
+    except Exception as e:
+        db.session.rollback()
+        print('Error occured while adding data: {}'.format(e),
+              file=sys.stdout)
+        sys.exit()
+
+    print('Successfully parsed data and added to db', file=sys.stdout)

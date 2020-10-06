@@ -1,7 +1,8 @@
 import factory
 import factory.fuzzy
+
 from app import db
-from .models import Category, Subcategory, Item, Price
+from .models import Category, Item, Price
 
 
 class CategoryFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -9,22 +10,8 @@ class CategoryFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Category
         sqlalchemy_session = db.session
 
-    id = factory.Sequence(lambda n: n)
-    name = factory.Sequence(lambda n: 'Category {}'.format(n))
-    url = factory.Sequence(
-        lambda n: 'http://category-{}'.format(n))
-
-
-class SubcategoryFactory(factory.alchemy.SQLAlchemyModelFactory):
-    class Meta:
-        model = Subcategory
-        sqlalchemy_session = db.session
-
-    id = factory.Sequence(lambda n: n)
-    name = factory.Sequence(lambda n: 'Subcategory {}'.format(n))
-    url = factory.Sequence(
-        lambda n: 'http://subcategory-{}'.format(n))
-    category_id = factory.SubFactory(CategoryFactory)
+    url = factory.LazyAttribute(
+        lambda obj: '/category/{}-22521'.format(obj.name))
 
 
 class ItemFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -32,11 +19,10 @@ class ItemFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Item
         sqlalchemy_session = db.session
 
-    id = factory.Sequence(lambda n: n)
-    name = factory.Sequence(lambda n: 'Subcategory {}'.format(n))
-    external_id = factory.Sequence(
-        lambda n: '{0}{1}{2}'.format(n, n + 1, n + 2))
-    subcategory_id = factory.SubFactory(SubcategoryFactory)
+    name = factory.Sequence(lambda n: 'Item %d' % n)
+    url = factory.Sequence(
+        lambda n: '/context/detail/id/%04d/' % n)
+    category_slug = factory.SubFactory(CategoryFactory)
 
 
 class PriceFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -45,5 +31,4 @@ class PriceFactory(factory.alchemy.SQLAlchemyModelFactory):
         sqlalchemy_session = db.session
 
     id = factory.Sequence(lambda n: n)
-    value = factory.fuzzy.FuzzyDecimal(10.0, 100.0, 2)
     item_id = factory.SubFactory(ItemFactory)

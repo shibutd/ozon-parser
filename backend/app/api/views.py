@@ -1,8 +1,8 @@
 from flask import request
 from flask_restful import Resource, reqparse
-from sqlalchemy.sql import expression
 from sqlalchemy.orm import joinedload
-from sqlalchemy_utils.types.ltree import LQUERY
+from sqlalchemy.sql import text
+
 from app import db
 from app.models import Category, Item, CategorySchema, ItemSchema
 from .helpers import PaginationHelper
@@ -16,6 +16,8 @@ parser = reqparse.RequestParser()
 
 
 class CategoryListResource(Resource):
+    '''Represent API endpoint for categories.
+    '''
 
     def get(self):
         categories = Category.query.filter(
@@ -25,6 +27,8 @@ class CategoryListResource(Resource):
 
 
 class ItemListResource(Resource):
+    '''Represent API endpoint for list of items.
+    '''
 
     def get(self):
         parser = reqparse.RequestParser()
@@ -38,17 +42,29 @@ class ItemListResource(Resource):
         args = parser.parse_args()
         category_slug = args['category']
 
+        # Get category
         category = Category.query.get_or_404(category_slug)
 
-        query = '%s.*{1}' % (category.slug)
-        lquery = expression.cast(query, LQUERY)
+        # Get leaf categories, children of category from request
+        sql_q = text(
+            '''
+            SELECT * FROM categories as f1
+            WHERE NOT EXISTS (
+                SELECT * FROM categories AS f2
+                WHERE f1.path @> f2.path
+                AND f1.path <> f2.path
+            )
+            AND path <@ :path
+            '''
+        )
+        resultproxy = db.engine.execute(sql_q, {'path': category.slug})
 
-        subcategories = Category.query.filter(
-            Category.path.lquery(lquery)).all()
         subcategories_slugs = [
-            subcategory.slug for subcategory in subcategories
+            rowproxy['slug']
+            for rowproxy in resultproxy
         ]
 
+        # Get items referring to leaf categories
         items_query = Item.query.filter(
             Item.category_slug.in_(subcategories_slugs))
 
@@ -67,6 +83,8 @@ class ItemListResource(Resource):
 
 
 class ItemResource(Resource):
+    '''Represent API endpoint for single item.
+    '''
 
     def get(self, id):
         item = Item.query.options(

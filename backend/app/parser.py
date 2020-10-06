@@ -3,27 +3,44 @@ import json
 import time
 import asyncio
 import concurrent.futures
+import threading
 from abc import ABC, abstractmethod
 from pathlib import Path
+
 import httpx
+from selenium import webdriver
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 
 
-class Parser(ABC):
+threadLocal = threading.local()
+
+
+class Fetcher(ABC):
+    '''Class to make asynchronous get requests and parse content
+    as receiving responses.
+    '''
+    KEEPALIVE_CONNECTIONS = 5
+    MAX_CONNECTIONS = 10
 
     def __init__(self):
         self.user_agent = UserAgent()
 
     async def fetch(self, session, url):
+        '''Make get response to url.
+        '''
         headers = {'User-Agent': self.user_agent.random}
         response = await session.get(url, headers=headers)
         return url, response
 
     async def fetch_pages_content(self, urls):
+        '''Fetch html content from page, then parse it.
+        '''
         tasks = []
-        limits = httpx.Limits(max_keepalive_connections=5,
-                              max_connections=10)
+        limits = httpx.Limits(
+            max_keepalive_connections=self.KEEPALIVE_CONNECTIONS,
+            max_connections=self.MAX_CONNECTIONS
+        )
 
         async with httpx.AsyncClient(limits=limits) as session:
             for url in urls:
@@ -47,7 +64,9 @@ class Parser(ABC):
         pass
 
 
-class CategoryParser(Parser):
+class CategoryParser(Fetcher):
+    '''Class to retrieve parent (from main page) category's name and url.
+    '''
     PATTERN = 'catalogMenu'
 
     def process_pattern(self, page_json):
@@ -79,7 +98,9 @@ class CategoryParser(Parser):
         return categories
 
 
-class SubcategoryParser(Parser):
+class SubcategoryParser(Fetcher):
+    '''Class to retrieve non-parent category's name and url.
+    '''
     PATTERNS = [
         'searchCategorySubtree',
         'catalogHorizontalMenu',
@@ -213,8 +234,12 @@ class SubcategoryParser(Parser):
         return subcategories
 
 
-class ItemsParser(Parser):
-    LOAD_PAGE_PAUSE_TIME = 5
+class ItemsParser:
+    '''Class to retrieve item's name, external_url, image_url and price
+    from category page. Uses selenium browser to load javascript content.
+    Uses multithreading for several page parsing together.
+    '''
+    LOAD_PAGE_PAUSE_TIME = 7
     SCROLL_PAUSE_TIME = 3
     WORKERS = 5
     MAX_PAGE_NUMBER = 100
@@ -224,11 +249,20 @@ class ItemsParser(Parser):
         self.executable_path = {'executable_path': str(driver_path)}
         self.user_agent = UserAgent()
 
-    def get_browser(self):
-        browser = None
-        return browser
+    def get_browser(self, headless=True):
+        driver = getattr(threadLocal, 'driver', None)
+        if driver is None:
+            options = webdriver.ChromeOptions()
+            if headless:
+                options.add_argument('headless')
+            options.add_argument('user_agent={}'.format(UserAgent().random))
+            driver = webdriver.Chrome(options=options, **self.executable_path)
+            setattr(threadLocal, 'driver', driver)
+        return driver
 
     def scroll_down_page(self, browser):
+        '''Scroll page down until all javascript content is loaded.
+        '''
         # Get scroll height
         last_height = browser.execute_script(
             "return document.body.scrollHeight")
@@ -244,16 +278,6 @@ class ItemsParser(Parser):
             if new_height == last_height:
                 break
             last_height = new_height
-
-    def get_page_items(self, url):
-        browser = self.get_browser()
-        browser.visit(url)
-        time.sleep(self.LOAD_PAGE_PAUSE_TIME)
-
-        self.scroll_down_page(browser)
-
-        items = self.parse(browser.html)
-        return items
 
     def process_tags(tags):
         items = []
@@ -293,6 +317,16 @@ class ItemsParser(Parser):
         items_from_tags = self.process_tags(tags_for_page)
         return items_from_tags
 
+    def get_page_items(self, url):
+        browser = self.get_browser()
+        browser.visit(url)
+        time.sleep(self.LOAD_PAGE_PAUSE_TIME)
+
+        self.scroll_down_page(browser)
+
+        items = self.parse(browser.page_source)
+        return items
+
     def retrive_items(self, url):
 
         def get_pages_urls(url, max_page_number):
@@ -301,8 +335,6 @@ class ItemsParser(Parser):
             return urls
 
         urls = get_pages_urls(url, self.MAX_PAGE_NUMBER)
-
-        # i = 1
         all_items = []
         futures = []
 
@@ -322,3 +354,19 @@ class ItemsParser(Parser):
                 all_items = []
 
         yield all_items
+
+
+class Parser:
+    def __init__(self):
+        self.category_parser = CategoryParser()
+        self.subcategory_parser = SubcategoryParser()
+        self.items_parser = ItemsParser()
+
+    def get_parent_categories(self, url):
+        return self.category_parser.retrieve_categories(url)
+
+    def get_subcategories(self, urls):
+        return self.subcategory_parser.retrieve_subcategories(urls)
+
+    def get_items(self, url):
+        return self.items_parser.retrive_items(url)
