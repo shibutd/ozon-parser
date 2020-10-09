@@ -1,22 +1,28 @@
 import React from "react";
 import Form from './components/Form';
+import List from './components/List';
+import Detail from './components/Detail';
+import InfoTab from './components/InfoTab';
 
 export default function App() {
   return (
     <>
       <main>
-        <div className="relative pt-16 pb-32 bg-indigo-600"
+        <div className="relative pt-8 pb-32 bg-indigo-600"
             style={{
-              minHeight: "75vh"
+              minHeight: "72vh"
             }}>
           <div className="container relative mx-auto">
-            <div className="w-full px-4 ml-auto mr-auto text-center">
-              <h1 className="text-white font-bold uppercase text-6xl">
-                Ozon Parser
-              </h1>
-
+            <div className="py-16 px-4 m-auto text-center">
+              <a href="/">
+                <h1 className="text-white font-bold uppercase text-6xl leading-none">
+                  Ozon Parser
+                </h1>
+              </a>
             </div>
             <Form />
+            {/*<List />*/}
+            {/*<Detail />*/}
 
           </div>
           <div
@@ -25,6 +31,9 @@ export default function App() {
           >
             <svg
               className="absolute bottom-0 overflow-hidden"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              version="1.1"
               viewBox="0 0 2560 100"
               x="0"
               y="0"
@@ -41,57 +50,37 @@ export default function App() {
           <div className="container mx-auto px-4">
             <div className="flex flex-wrap">
               <div className="lg:pt-12 pt-6 w-full md:w-4/12 px-4 text-center">
-                <div className="relative flex flex-col min-w-0 break-words bg-white w-full mb-8 shadow-lg rounded-lg">
-                  <div className="px-4 py-5 flex-auto">
-                    <div className="text-white p-3 text-center inline-flex items-center justify-center w-12 h-12 mb-5 shadow-lg rounded-full bg-red-400">
-                      <i class="fas fa-search"></i>
-                    </div>
-                    <h6 className="text-xl font-semibold">
-                    Easy Search
-                    </h6>
-                    <p className="mt-2 mb-4 text-gray-600">
-                      Search products by site URL <br /> or Category
-                    </p>
-                  </div>
-                </div>
+                <InfoTab
+                  color="bg-red-400"
+                  icon="fas fa-search"
+                  title="Easy Search"
+                  msg="Search products by site URL or Category
+"
+                />
               </div>
 
               <div className="w-full md:w-4/12 px-4 text-center">
-                <div className="relative flex flex-col min-w-0 break-words bg-white w-full mb-8 shadow-lg rounded-lg">
-                  <div className="px-4 py-5 flex-auto">
-                    <div className="text-white p-3 text-center inline-flex items-center justify-center w-12 h-12 mb-5 shadow-lg rounded-full bg-blue-400">
-                      <i class="fas fa-chart-line"></i>
-                    </div>
-                    <h6 className="text-xl font-semibold">
-                      Price Charts
-                    </h6>
-                    <p className="mt-2 mb-4 text-gray-600">
-                      Charts showing price history <br /> over last several months
-                    </p>
-                  </div>
-                </div>
+                <InfoTab
+                  color="bg-blue-400"
+                  icon="fas fa-chart-line"
+                  title="Price Charts"
+                  msg="Price history over last several months"
+                />
               </div>
 
               <div className="pt-6 w-full md:w-4/12 px-4 text-center">
-                <div className="relative flex flex-col min-w-0 break-words bg-white w-full mb-8 shadow-lg rounded-lg">
-                  <div className="px-4 py-5 flex-auto">
-                    <div className="text-white p-3 text-center inline-flex items-center justify-center w-12 h-12 mb-5 shadow-lg rounded-full bg-red-400">
-                      <i class="far fa-envelope-open"></i>
-                    </div>
-                    <h6 className="text-xl font-semibold">
-                      Subscribe
-                    </h6>
-                    <p className="mt-2 mb-4 text-gray-600">
-                      Subscribe to receive notifications <br /> about price drop!
-                    </p>
-                  </div>
-                </div>
+                <InfoTab
+                  color="bg-red-400"
+                  icon="far fa-envelope-open"
+                  title="Subscribe"
+                  msg="Subscribe to receive notifications!"
+                />
               </div>
+
             </div>
-
-
           </div>
         </section>
+        
       </main>
     </>
   );
