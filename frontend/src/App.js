@@ -1,12 +1,21 @@
-import React from "react";
+import React, { useContext } from "react";
+import {
+  BrowserRouter as Router,
+  Switch,
+  Route
+} from 'react-router-dom';
 import Form from './components/Form';
 import List from './components/List';
 import Detail from './components/Detail';
 import InfoTab from './components/InfoTab';
+import { ModalContext } from './context';
+
 
 export default function App() {
+  const { modal } = useContext(ModalContext);
+
   return (
-    <>
+    <Router>
       <main>
         <div className="relative pt-8 pb-32 bg-indigo-600"
             style={{
@@ -15,14 +24,22 @@ export default function App() {
           <div className="container relative mx-auto">
             <div className="py-16 px-4 m-auto text-center">
               <a href="/">
-                <h1 className="text-white font-bold uppercase text-6xl leading-none">
+                <h1 className="text-white font-title uppercase text-6xl sm:text-8xl leading-none">
                   Ozon Parser
                 </h1>
               </a>
             </div>
-            <Form />
-            {/*<List />*/}
-            {/*<Detail />*/}
+
+            <Switch>
+              <Route exact path="/">
+                <Form />
+                { modal && <Detail /> }
+              </Route>
+              <Route path="/categories/:category">
+                <List />
+                { modal && <Detail /> }
+              </Route>
+            </Switch>
 
           </div>
           <div
@@ -48,14 +65,13 @@ export default function App() {
 
         <section className="pb-20 bg-red-500 -mt-24">
           <div className="container mx-auto px-4">
-            <div className="flex flex-wrap">
+            <div className="flex flex-wrap z-10">
               <div className="lg:pt-12 pt-6 w-full md:w-4/12 px-4 text-center">
                 <InfoTab
                   color="bg-red-400"
                   icon="fas fa-search"
                   title="Easy Search"
-                  msg="Search products by site URL or Category
-"
+                  msg="Search products by site URL or Category"
                 />
               </div>
 
@@ -82,6 +98,6 @@ export default function App() {
         </section>
         
       </main>
-    </>
+    </Router>
   );
 }

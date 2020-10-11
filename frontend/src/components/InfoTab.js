@@ -16,7 +16,7 @@ export default function InfoTab(props) {
         <h6 className="text-xl font-semibold">
           {title}
         </h6>
-        <p className="mt-2 mb-4 text-gray-600">
+        <p className="mt-2 mb-4 text-gray-600 italic">
           {msg}
         </p>
       </div>

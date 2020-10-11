@@ -1,7 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import LineChart from './LineChart';
+import { ModalContext } from '../context';
+import { useOnClickOutside } from '../customHooks';
+
 
 export default function Detail() {
+  const { setModal } = useContext(ModalContext);
+
+  const refModal = useRef(null);
+
+  useOnClickOutside(refModal, () => setModal(null));
 
   const item = {
     "name": "Samsung LED 17 inch",
@@ -23,12 +31,19 @@ export default function Detail() {
     return `${lastPrice.value} P`;
   };
 
-  // useEffect(() => {
+  // function handleClick(e) {
+  //   if (e.target.classList.contains('back')) {
+  //     setModal(null);
+  //   }
+  // }
 
+  // useEffect(() => {
+    // fetch
   // }, []);
 
   return (
-    <div className="relative container mx-auto flex flex-col md:flex-row w-9/12 my-8 rounded-lg bg-gray-100">
+    <div className="z-50 fixed top-0 left-0 bg-gray-700 bg-opacity-75 w-full h-full pt-16">
+      <div ref={refModal} className="relative container mx-auto block flex flex-col md:flex-row w-9/12 px-1 sm:px-12 py-4 sm:py-8 rounded-lg bg-gray-100">
         <div className="flex self-center justify-center w-4/12">
           <img
             alt="product"
@@ -46,6 +61,7 @@ export default function Detail() {
           </div>
           <LineChart data={item.prices} />
         </div>
+      </div>
     </div>
   )
 }
