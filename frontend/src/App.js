@@ -6,7 +6,7 @@ import {
 } from 'react-router-dom';
 import Form from './components/Form';
 import List from './components/List';
-import Detail from './components/Detail';
+import Modal from './components/Modal';
 import InfoTab from './components/InfoTab';
 import { ModalContext } from './context';
 
@@ -24,22 +24,31 @@ export default function App() {
           <div className="container relative mx-auto">
             <div className="py-16 px-4 m-auto text-center">
               <a href="/">
-                <h1 className="text-white font-title uppercase text-6xl sm:text-8xl leading-none">
+                <h1 className="text-gray-100 font-title uppercase text-6xl sm:text-8xl leading-none">
                   Ozon Parser
                 </h1>
               </a>
             </div>
 
+            {/* Switch section */}
             <Switch>
               <Route exact path="/">
                 <Form />
-                { modal && <Detail /> }
+                { modal && <Modal /> }
               </Route>
               <Route path="/categories/:category">
                 <List />
-                { modal && <Detail /> }
+                { modal && <Modal /> }
+              </Route>
+              <Route path="*">
+                <div className="text-gray-100 font-semibold text-4xl text-center">This page does not exists!
+                </div>
+                <div className="text-gray-100 font-semibold text-md text-center">
+                  Sorry, the page you were looking for could not be found...
+                </div>
               </Route>
             </Switch>
+            {/* Switch section End */}
 
           </div>
           <div
@@ -63,6 +72,7 @@ export default function App() {
           </div>
         </div>
 
+        {/* Infotabs section */}
         <section className="pb-20 bg-red-500 -mt-24">
           <div className="container mx-auto px-4">
             <div className="flex flex-wrap z-10">
@@ -71,10 +81,9 @@ export default function App() {
                   color="bg-red-400"
                   icon="fas fa-search"
                   title="Easy Search"
-                  msg="Search products by site URL or Category"
+                  msg="Search products by site URL, ID or Category"
                 />
               </div>
-
               <div className="w-full md:w-4/12 px-4 text-center">
                 <InfoTab
                   color="bg-blue-400"
@@ -83,7 +92,6 @@ export default function App() {
                   msg="Price history over last several months"
                 />
               </div>
-
               <div className="pt-6 w-full md:w-4/12 px-4 text-center">
                 <InfoTab
                   color="bg-red-400"
@@ -92,10 +100,10 @@ export default function App() {
                   msg="Subscribe to receive notifications!"
                 />
               </div>
-
             </div>
           </div>
         </section>
+        {/* Infotabs section End */}
         
       </main>
     </Router>

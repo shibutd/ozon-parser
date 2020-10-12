@@ -1,39 +1,26 @@
-import React, { useState, useRef, useContext } from 'react';
+import React, { useState, useRef } from 'react';
+import PropTypes from 'prop-types';
+import DropdownItem from './DropdownItem';
 import { useOnClickOutside } from '../customHooks';
 
 
 export default function Dropdown(props) {
-  const { category, changeCategory } = props;
+  const { options, category, changeCategory } = props;
   const [visible, setVisible] = useState(false);
   const refDropdown = useRef(null);
 
   useOnClickOutside(refDropdown, () => closeDropdownPopover());
 
-  const options = [
-    {
-      "id": 1,
-      "name": "first"
-    },
-    {
-      "id": 2,
-      "name": "second"
-    },
-    {
-      "id": 3,
-      "name": "third"
-    }
-  ];
-
   const openDropdownPopover = () => {
     setVisible(true);
   };
+
   const closeDropdownPopover = () => {
     setVisible(false);
   };
 
   const handleSelect = (e, option) => {
-    e.preventDefault();
-    changeCategory(option.name);
+    changeCategory(option);
     closeDropdownPopover();
   };
 
@@ -57,17 +44,42 @@ export default function Dropdown(props) {
           "absolute w-11/12 mt-2 text-base z-50 float-left list-none text-left rounded shadow-lg"
         }
       >
-      {options.map((option) => (
-        <a
-          key={option.id}
-          href={`${option.name}`}
-          className="py-2 px-4 text-md font-normal block w-full whitespace-no-wrap bg-transparent bg-white text-gray-600 transition duration-200 hover:bg-gray-600 hover:text-white"
-          onClick={e => handleSelect(e, option)}
+      
+      {options.status === 'loading' && (
+        <div
+          className="py-2 px-4 text-md font-normal block w-full whitespace-no-wrap bg-white text-gray-600"
         >
-          {option.name}
-        </a>
-      ))}
+        Loading...
+        </div>
+      )}
+
+      {options.status === 'error' && (
+        <div
+          className="py-2 px-4 text-md font-normal block w-full whitespace-no-wrap bg-white text-gray-600"
+        >
+        Error retreiving categories. Please try again later
+        </div>
+      )}
+
+      {options.status === 'success' && (
+        <div>
+          {options.data.map(option => (
+            <DropdownItem
+              key={option.slug}
+              option={option}
+              handleClick={handleSelect}
+            />
+          ))}
+        </div>
+      )}
+
       </div>
     </div>
   );
+}
+
+Dropdown.propTypes = {
+  options: PropTypes.object.isRequired,
+  category: PropTypes.string.isRequired,
+  changeCategory: PropTypes.func.isRequired,
 }

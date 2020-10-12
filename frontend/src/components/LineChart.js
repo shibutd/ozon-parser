@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import PropTypes from 'prop-types';
 import Chart from "chart.js";
 
 
@@ -14,7 +15,6 @@ export default function LineChart(props) {
 
   useEffect(() => {
     const prices = processItemPrices(props.data);
-    console.log(prices);
 
     const config = {
       type: 'line',
@@ -88,8 +88,12 @@ export default function LineChart(props) {
   }, [props.data]);
 
   return (
-    <div className="relative py-4 pr-2">
+    <div className="relative">
       <canvas ref={chartRef} id="line-chart"></canvas>
     </div>
   );
+}
+
+LineChart.propTypes = {
+  data: PropTypes.arrayOf(PropTypes.object)
 }
