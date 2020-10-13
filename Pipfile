@@ -20,6 +20,7 @@ sqlalchemy-utils = "*"
 httpx = "*"
 lxml = "*"
 selenium = "*"
+python-dotenv = "*"
 
 [dev-packages]
 

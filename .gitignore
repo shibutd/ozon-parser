@@ -5,6 +5,7 @@ __pycache__/
 sample_data.json
 subcategories.json
 tmp/
+.env
 
 # frontend
 
