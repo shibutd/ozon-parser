@@ -4,6 +4,8 @@ import {
   Switch,
   Route
 } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import Title from './components/Title';
 import Form from './components/Form';
 import List from './components/List';
 import Modal from './components/Modal';
@@ -22,13 +24,17 @@ export default function App() {
               minHeight: "72vh"
             }}>
           <div className="container relative mx-auto">
-            <div className="py-16 px-4 m-auto text-center">
-              <a href="/">
-                <h1 className="text-gray-100 font-title uppercase text-6xl sm:text-8xl leading-none">
-                  Ozon Parser
-                </h1>
-              </a>
-            </div>
+            <a
+              href="/"
+              className="flex justify-center items-center flex-wrap overflow-hidden px-4 pb-10 m-auto"
+            >
+              <div className="flex md:mr-8">
+                <Title text={'Ozon'}/>
+              </div>
+              <div className="flex">
+                <Title text={'Parser'}/>
+              </div>
+            </a>
 
             {/* Switch section */}
             <Switch>
@@ -73,33 +79,45 @@ export default function App() {
         </div>
 
         {/* Infotabs section */}
-        <section className="pb-20 bg-red-500 -mt-24">
+        <section className="pb-10 md:pb-20 bg-red-500 -mt-24">
           <div className="container mx-auto px-4">
             <div className="flex flex-wrap z-10">
-              <div className="lg:pt-12 pt-6 w-full md:w-4/12 px-4 text-center">
+              <motion.div
+                className="lg:pt-12 pt-6 w-full md:w-4/12 px-4 text-center"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.95 }}
+              >
                 <InfoTab
                   color="bg-red-400"
                   icon="fas fa-search"
                   title="Easy Search"
                   msg="Search products by site URL, ID or Category"
                 />
-              </div>
-              <div className="w-full md:w-4/12 px-4 text-center">
+              </motion.div>
+              <motion.div 
+                className="w-full md:w-4/12 px-4 text-center"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.95 }}
+              >
                 <InfoTab
                   color="bg-blue-400"
                   icon="fas fa-chart-line"
                   title="Price Charts"
                   msg="Price history over last several months"
                 />
-              </div>
-              <div className="pt-6 w-full md:w-4/12 px-4 text-center">
+              </motion.div>
+              <motion.div 
+                className="md:pt-6 px-4 w-full md:w-4/12 text-center"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.95 }}
+              >
                 <InfoTab
                   color="bg-red-400"
                   icon="far fa-envelope-open"
                   title="Subscribe"
                   msg="Subscribe to receive notifications!"
                 />
-              </div>
+              </motion.div>
             </div>
           </div>
         </section>

@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 export default function InfoTab(props) {
   const { color, icon, title, msg } = props;
   return (
-    <div className="relative flex flex-col min-w-0 break-words bg-white w-full mb-8 shadow-lg rounded-lg transition duration-300 transform hover:scale-102">
+    <div className="relative flex flex-col min-w-0 break-words bg-white w-full mb-8 shadow-lg rounded-lg transition duration-300">
       <div className="px-4 py-5 flex-auto">
         <div 
           className={

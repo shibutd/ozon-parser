@@ -1,6 +1,7 @@
 import React, { useContext, useRef } from 'react';
 import { useQuery } from 'react-query';
 import axios, { CancelToken } from 'axios';
+import { motion } from 'framer-motion';
 import LineChart from './LineChart';
 import { ModalContext } from '../context';
 import { useOnClickOutside } from '../customHooks';
@@ -42,7 +43,9 @@ export default function Modal() {
 
   if (status === 'error') {
     return (
-      <div className="z-50 fixed top-0 left-0 w-full h-full pt-16 bg-gray-700 bg-opacity-75 ">
+      <div 
+        className="z-50 fixed top-0 left-0 w-full h-full pt-16 bg-gray-700 bg-opacity-75"
+      >
         <div ref={refModal} className="relative container mx-auto flex  flex-col w-9/12 h-auto rounded-lg shadow-lg bg-gray-200 py-16">
             <div className="text-gray-700 font-semibold text-4xl text-center">Something wrong here!
             </div>
@@ -55,7 +58,12 @@ export default function Modal() {
   }
 
   return (
-    <div className="z-50 fixed top-0 left-0 w-full h-full pt-16 bg-gray-700 bg-opacity-75 ">
+    <motion.div 
+      className="z-50 fixed top-0 left-0 w-full h-full pt-16 bg-gray-700 bg-opacity-75"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.7 }}
+    >
       <div ref={refModal} className="relative container mx-auto flex  flex-col md:flex-row w-9/12 h-auto rounded-lg shadow-lg bg-gray-200 pt-4 md:pt-0">
 
         <div className="flex justify-center w-4/12 mx-auto my-auto">
@@ -79,7 +87,7 @@ export default function Modal() {
             <div className="flex flex-col w-full w-full my-2 pr-4 animate-pulse">
               <div className="w-full h-16 bg-gray-400 ml-2 my-2" />
               <div className="w-8/12 h-12 bg-gray-400 ml-2 my-2" />
-              <div className="w-full h-56 bg-gray-400 ml-2 my-2" />
+              <div className="w-full h-40 md:h-80 bg-gray-400 ml-2 my-2" />
             </div>
           )}
           {status === 'success' && (
@@ -98,6 +106,6 @@ export default function Modal() {
         </div>
 
       </div>
-    </div>
+    </motion.div>
   )
 }
