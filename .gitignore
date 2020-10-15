@@ -6,6 +6,7 @@ sample_data.json
 subcategories.json
 tmp/
 .env
+postgres-data
 
 # frontend
 

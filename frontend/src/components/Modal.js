@@ -75,7 +75,7 @@ export default function Modal() {
             <div className="bg-gray-100 text-black border-none shadow-lg rounded-lg">
               <img
                 alt="product"
-                src={"https://cdn1.ozone.ru/multimedia/wc250/1.jpg"}
+                src={data.image_url}
                 className="min-wd-full border-none py-2 px-2"
               />
             </div>

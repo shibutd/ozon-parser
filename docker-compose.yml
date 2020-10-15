@@ -1,0 +1,44 @@
+version: '3'
+
+services:
+  backend:
+    build:
+      context: ./backend/
+      dockerfile: Dockerfile
+    restart: always
+    volumes:
+      - ./backend:/backend
+    ports:
+      - 5000:5000
+    env_file:
+      - ./backend/.env.dev
+    depends_on:
+      - db
+    entrypoint: ./scripts/backend-entrypoint.sh
+
+  db:
+    build:
+      context: ./backend/
+      dockerfile: pg-Dockerfile
+    restart: always
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - ./backend/.env.dev
+
+  frontend:
+    build:
+      context: ./frontend/
+      dockerfile: Dockerfile
+    restart: always
+    volumes:
+      - ./frontend/src:/frontend/src
+      - ./frontend/public:/frontend/public
+    ports:
+      - 3000:3000
+    stdin_open: true
+
+volumes:
+  postgres_data:
