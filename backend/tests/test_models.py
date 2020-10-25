@@ -3,6 +3,8 @@ from sqlalchemy_utils import Ltree
 
 from app import create_app, db
 from app.models import Category, Item
+from app.factories import CategoryFactory
+
 
 class TestModels(TestCase):
 
@@ -81,3 +83,28 @@ class TestModels(TestCase):
 
         categories_len = Category.query.count()
         self.assertEqual(categories_len, 3)
+
+    def test_is_parent(self):
+        '''Ensure is_parent method works as expected.
+        '''
+        category1 = CategoryFactory.create(name='electronics')
+        CategoryFactory.create(name='tv', parent=category1)
+
+        categories = Category.query.filter(
+            Category.is_parent()).all()
+
+        self.assertEqual(len(categories), 1)
+        self.assertIn(category1, categories)
+
+    def test_has_no_children(self):
+        '''Ensure has_no_children method works as expected.
+        '''
+        category1 = CategoryFactory.create(name='electronics')
+        category2 = CategoryFactory.create(
+            name='tv', parent=category1)
+
+        categories = Category.query.filter(
+            Category.has_no_children()).all()
+
+        self.assertEqual(len(categories), 1)
+        self.assertIn(category2, categories)

@@ -237,7 +237,7 @@ class SubcategoryParser(Fetcher):
 class ItemsParser:
     '''Class to retrieve item's name, external_url, image_url and price
     from category page. Uses selenium browser to load javascript content.
-    Uses multithreading for several page parsing together.
+    Uses multithreading for several page parsing simultaneously.
     '''
     LOAD_PAGE_PAUSE_TIME = 7
     SCROLL_PAUSE_TIME = 3
@@ -318,8 +318,8 @@ class ItemsParser:
         return items_from_tags
 
     def get_page_items(self, url):
-        browser = self.get_browser()
-        browser.visit(url)
+        browser = self.get_browser(headless=False)
+        browser.get(url)
         time.sleep(self.LOAD_PAGE_PAUSE_TIME)
 
         self.scroll_down_page(browser)

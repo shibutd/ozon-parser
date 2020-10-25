@@ -1,8 +1,9 @@
 import re
 import datetime
 
-from sqlalchemy.orm import remote, foreign
+from sqlalchemy.orm import remote, foreign, aliased
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql import exists, and_
 from sqlalchemy.sql.expression import Insert
 from sqlalchemy_utils import LtreeType, Ltree
 from marshmallow import fields
@@ -61,6 +62,16 @@ class Category(db.Model):
         parent = kwargs.get('parent')
         kwargs['path'] = ltree_slug if not parent else parent.path + ltree_slug
         super().__init__(*args, **kwargs)
+
+    @classmethod
+    def is_parent(cls):
+        return db.func.nlevel(cls.path) == 1
+
+    @classmethod
+    def has_no_children(cls):
+        c2 = aliased(Category)
+        return ~exists().where(
+            and_(cls.path.ancestor_of(c2.path), cls.path != c2.path))
 
     def __repr__(self):
         return '<Category %r>' % self.name

@@ -1,9 +1,7 @@
 from flask import request
 from flask_restful import Resource, reqparse
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql import text
 
-from app import db
 from app.models import Category, Item, CategorySchema, ItemSchema
 from .helpers import PaginationHelper
 
@@ -16,18 +14,18 @@ parser = reqparse.RequestParser()
 
 
 class CategoryListResource(Resource):
-    '''Represent API endpoint for categories.
+    '''API endpoint for list of categories that has no parents.
     '''
 
     def get(self):
         categories = Category.query.filter(
-            db.func.nlevel(Category.path) == 1).all()
+            Category.is_parent()).all()
         results = category_schema.dump(categories, many=True)
         return results
 
 
 class ItemListResource(Resource):
-    '''Represent API endpoint for list of items.
+    '''API endpoint for list of items.
     '''
 
     def get(self):
@@ -45,28 +43,11 @@ class ItemListResource(Resource):
         # Get category
         category = Category.query.get_or_404(category_slug)
 
-        # Get leaf categories, children of category from request
-        sql_q = text(
-            '''
-            SELECT * FROM categories as f1
-            WHERE NOT EXISTS (
-                SELECT * FROM categories AS f2
-                WHERE f1.path @> f2.path
-                AND f1.path <> f2.path
-            )
-            AND path <@ :path
-            '''
+        # Get items referred to categories without children
+        items_query = Item.query.join(Category).filter(
+            Category.has_no_children(),
+            Category.path.descendant_of(category.path)
         )
-        resultproxy = db.engine.execute(sql_q, {'path': category.slug})
-
-        subcategories_slugs = [
-            rowproxy['slug']
-            for rowproxy in resultproxy
-        ]
-
-        # Get items referring to leaf categories
-        items_query = Item.query.filter(
-            Item.category_slug.in_(subcategories_slugs))
 
         pagination_helper = PaginationHelper(
             request,
@@ -83,7 +64,7 @@ class ItemListResource(Resource):
 
 
 class ItemResource(Resource):
-    '''Represent API endpoint for single item.
+    '''API endpoint for single item.
     '''
 
     def get(self, id):

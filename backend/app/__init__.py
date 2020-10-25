@@ -16,6 +16,6 @@ def create_app(config_name):
     app.register_blueprint(api_bp, url_prefix='/api')
 
     from .commands import cmd_bp
-    app.register_blueprint(cmd_bp)
+    app.register_blueprint(cmd_bp, cli_group=None)
 
     return app
