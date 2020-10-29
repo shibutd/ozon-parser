@@ -1,11 +1,15 @@
+import os
 import re
 import json
 import time
 import asyncio
+import logging
 import concurrent.futures
-import threading
+from queue import PriorityQueue, Empty
+from threading import Thread, Lock, Event
 from abc import ABC, abstractmethod
 from pathlib import Path
+from contextvars import ContextVar
 
 import httpx
 from selenium import webdriver
@@ -13,12 +17,13 @@ from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 
 
-threadLocal = threading.local()
+logging.basicConfig(level=logging.DEBUG)
+# threadLocal = threading.local()
+var_driver = ContextVar('driver', default=None)
 
 
-class Fetcher(ABC):
-    '''Class to make asynchronous get requests and parse content
-    as receiving responses.
+class Fetcher:
+    '''Class to make asynchronous get requests.
     '''
     KEEPALIVE_CONNECTIONS = 5
     MAX_CONNECTIONS = 10
@@ -27,45 +32,74 @@ class Fetcher(ABC):
         self.user_agent = UserAgent()
 
     async def fetch(self, session, url):
-        '''Make get response to url.
+        '''Make GET request to url.
         '''
         headers = {'User-Agent': self.user_agent.random}
-        response = await session.get(url, headers=headers)
+        try:
+            response = await session.get(url, headers=headers)
+            if response.status_code != 200:
+                response.raise_for_status()
+        except httpx.HTTPError as e:
+            logging.debug('Error occured while parsing %s: %s', (url, e))
         return url, response
 
+    # def get_session(self):
+    #     limits = httpx.Limits(
+    #         max_keepalive_connections=self.KEEPALIVE_CONNECTIONS,
+    #         max_connections=self.MAX_CONNECTIONS
+    #     )
+    #     session = httpx.AsyncClient(limits=limits)
+    #     return session
+
     async def fetch_pages_content(self, urls):
-        '''Fetch html content from page, then parse it.
+        '''Fetch html content from page.
         '''
+        # session = self.get_session()
         tasks = []
+
         limits = httpx.Limits(
             max_keepalive_connections=self.KEEPALIVE_CONNECTIONS,
             max_connections=self.MAX_CONNECTIONS
         )
+        timeout = httpx.Timeout(10.0, connect=60.0)
 
-        async with httpx.AsyncClient(limits=limits) as session:
+        # session = httpx.AsyncClient(limits=limits)
+        async with httpx.AsyncClient(limits=limits, timeout=timeout) as session:
+
             for url in urls:
                 tasks.append(
                     asyncio.create_task(
                         self.fetch(session, url)
                     ))
 
-            pages_content = []
             for task_result in asyncio.as_completed(tasks):
                 fetched_content = await task_result
                 url, response = fetched_content
-                page_content = self.parse(response.text)
+                yield url, response.text
 
-                pages_content.append({url: page_content})
+            await session.aclose()
 
-            return pages_content
+
+class ContentParser(Fetcher, ABC):
+
+    async def get_pages_content(self, urls):
+        pages_content = []
+
+        data = [result async for result in self.fetch_pages_content(urls)]
+
+        for url, page_html in data:
+            page_content = self.parse(page_html)
+            pages_content.append({url: page_content})
+
+        return pages_content
 
     @abstractmethod
-    def parse(self, page_content):
+    def parse(self, page_html):
         pass
 
 
-class CategoryParser(Fetcher):
-    '''Class to retrieve parent (from main page) category's name and url.
+class CategoryParser(ContentParser):
+    '''Class to get parent (from main page) categories names and urls.
     '''
     PATTERN = 'catalogMenu'
 
@@ -92,14 +126,14 @@ class CategoryParser(Fetcher):
 
         return page_content
 
-    def retrieve_categories(self, url):
-        # Retrieve categories
-        categories = asyncio.run(self.fetch_pages_content([url]))
+    def get_categories(self, url):
+        categories = asyncio.run(self.get_pages_content([url]))
+        # categories = self.get_pages_content([url])
         return categories
 
 
-class SubcategoryParser(Fetcher):
-    '''Class to retrieve non-parent category's name and url.
+class SubcategoryParser(ContentParser):
+    '''Class to get non-parent categories names and urls.
     '''
     PATTERNS = [
         'searchCategorySubtree',
@@ -228,10 +262,98 @@ class SubcategoryParser(Fetcher):
         page_content = function(page_json)
         return page_content
 
-    def retrieve_subcategories(self, urls):
-        # Retrieve subcategories
-        subcategories = asyncio.run(self.fetch_pages_content(urls))
+    def get_subcategories(self, urls):
+        subcategories = asyncio.run(self.get_pages_content(urls))
         return subcategories
+
+
+class ProducerThread(Thread):
+
+    def __init__(self, queue, event, parser, url):
+        super().__init__(self)
+        self.queue = queue
+        self.event = event
+        self.parser = parser
+        self.url = url
+
+    def run(self):
+        while True:
+            if not self.event.is_set():
+                logging.debug('Producer thread: Waiting for start...')
+
+            self.event.wait()
+            logging.debug('Producer thread: Producing task to the queue')
+
+            # while current_page_number < max_page_number:
+            max_page_number = self.parser.max_page_number
+            current_page_number = self.parser.current_page_number
+
+            logging.debug('Producer thread: Current page: %s, max page: %s',
+                          (current_page_number, max_page_number))
+
+            if current_page_number == max_page_number:
+                logging.debug('Producer thread: Finishing...')
+                break
+
+            i = 0
+            for page_number, url in self.parser.get_pages_urls(
+                self.url,
+                range(
+                    current_page_number + 1,
+                    max_page_number + 1
+                )
+            ):
+                i += 1
+                self.queue.put((page_number, url))
+
+            logging.debug('Producer thread: Added %s tasks to the queue', i)
+            self.parser.update_current_page_number(max_page_number)
+
+            logging.debug('Producer thread: ')
+            self.queue.join()
+            # current_page_number = max_page_number
+
+            # if last_processed_page_number == max_page_number:
+            #     break
+
+
+class ConsumerThread(Thread):
+
+    def __init__(self, queue, parser, check_period=1):
+        super().__init__(self)
+        self.queue = queue
+        # self.event = event
+        self.parser = parser
+        self.check_period = check_period
+
+    def run(self):
+        while True:
+            try:
+                logging.debug('Consumer thread %s: Request item from queue', self.name)
+                queue_item = self.queue.get(block=False)
+            except Empty:
+                logging.debug('Consumer thread %s: Queue is empty, waiting...', self.name)
+                time.sleep(self.check_period)
+            else:
+                if queue_item is None:
+                    logging.debug(
+                        'Consumer thread %s: Got "None" from queue. Finishing...',
+                        self.name
+                    )
+                    break
+                _, url = queue_item
+                logging.debug('Consumer thread %s: Got item from queue^ %s', (
+                              self.name, url))
+                items = self.parser.get_page_items(url)
+
+                self.parser.update_items(items)
+                # self.parser.update_current_page_number(page_number)
+
+                logging.debug('Consumer thread %s: Task Done: processed %s', (
+                              self.name, url))
+                self.queue.task_done()
+            # if terminate_event.is_set():
+            #     break
 
 
 class ItemsParser:
@@ -239,25 +361,32 @@ class ItemsParser:
     from category page. Uses selenium browser to load javascript content.
     Uses multithreading for several page parsing simultaneously.
     '''
+    WORKERS = os.cpu_count()
     LOAD_PAGE_PAUSE_TIME = 7
     SCROLL_PAUSE_TIME = 3
-    WORKERS = 5
-    MAX_PAGE_NUMBER = 100
+    MAX_SIZE_ITEMS_TRANSITION = 1000
 
     def __init__(self):
         driver_path = Path(__file__).parent.parent / 'chromedriver.exe'
         self.executable_path = {'executable_path': str(driver_path)}
         self.user_agent = UserAgent()
+        self.all_items = []
+        self._items_lock = Lock()
+        self._max_page_lock = Lock()
+        self._current_page_lock = Lock()
 
     def get_browser(self, headless=True):
-        driver = getattr(threadLocal, 'driver', None)
+        # driver = getattr(threadLocal, 'driver', None)
+        driver = var_driver.get()
         if driver is None:
             options = webdriver.ChromeOptions()
             if headless:
                 options.add_argument('headless')
             options.add_argument('user_agent={}'.format(UserAgent().random))
             driver = webdriver.Chrome(options=options, **self.executable_path)
-            setattr(threadLocal, 'driver', driver)
+            # setattr(threadLocal, 'driver', driver)
+            var_driver.set(driver)
+
         return driver
 
     def scroll_down_page(self, browser):
@@ -278,6 +407,10 @@ class ItemsParser:
             if new_height == last_height:
                 break
             last_height = new_height
+
+
+    def get_max_page_number(self):
+        pass
 
     def process_tags(tags):
         items = []
@@ -324,36 +457,77 @@ class ItemsParser:
 
         self.scroll_down_page(browser)
 
+        max_page_number = self.get_max_page_number(browser.page_source)
+        self.update_max_page_number(max_page_number)
+
         items = self.parse(browser.page_source)
         return items
 
-    def retrive_items(self, url):
+    def update_max_page_number(self, page_number):
+        with self._max_page_lock:
+            if page_number > self.max_page_number:
+                self.max_page_number = page_number
+            # event.set()
 
-        def get_pages_urls(url, max_page_number):
-            urls = ['{0}?page={1}'.format(url, page)
-                    for page in range(1, max_page_number, 10)]
-            return urls
+    def update_current_page_number(self, page_number):
+        with self._current_page_lock:
+            self.current_page_number = page_number
 
-        urls = get_pages_urls(url, self.MAX_PAGE_NUMBER)
-        all_items = []
-        futures = []
+    def update_items(self, items):
+        with self._items_lock:
+            self.all_items.extend(items)
+            if len(self.all_items) > self.MAX_SIZE_ITEMS_TRANSITION:
+                yield self.all_items
+                self.all_items = []
 
-        with concurrent.futures.ThreadPoolExecutor(
-                max_workers=self.WORKERS) as executor:
-            for url in urls:
-                futures.append(
-                    executor.submit(self.get_page_items, url)
-                )
+        # yield self.all_items
 
-        for future in concurrent.futures.as_completed(futures):
-            items = future.result()
-            all_items.extend(items)
+    @staticmethod
+    def get_pages_urls(url, numbers):
+        for page_number in numbers:
+            yield page_number, '{0}?page={1}'.format(url, page_number)
 
-            if len(all_items) > 1000:
-                yield all_items
-                all_items = []
+    def get_items(self, url):
+        self.all_items = []
+        # self.max_page_number = 5
+        # self.current_page_number = 0
 
-        yield all_items
+        q = PriorityQueue()
+        update_q_event = Event()
+
+        producer_thread = ProducerThread(
+            queue=q,
+            event=update_q_event,
+            parser=self,
+            url=url
+        )
+        producer_thread.start()
+
+        consumer_threads = []
+        workers_number = self.WORKERS if self.WORKERS else 1
+        for _ in range(workers_number):
+            consumer_thread = ConsumerThread(
+                queue=q,
+                parser=self
+            )
+            consumer_thread.start()
+            consumer_threads.append(consumer_thread)
+
+        logging.debug('Main thread: Starting...')
+        self.update_current_page_number(0)
+        self.update_max_page_number(1)
+        update_q_event.set()
+
+        producer_thread.join()
+
+        logging.debug('Main thread: Finishing session...')
+        for _ in range(workers_number):
+            q.put(None)
+
+        for t in consumer_threads:
+            t.join()
+
+        return self.all_items
 
 
 class Parser:
@@ -363,10 +537,10 @@ class Parser:
         self.items_parser = ItemsParser()
 
     def get_parent_categories(self, url):
-        return self.category_parser.retrieve_categories(url)
+        return self.category_parser.get_categories(url)
 
     def get_subcategories(self, urls):
-        return self.subcategory_parser.retrieve_subcategories(urls)
+        return self.subcategory_parser.get_subcategories(urls)
 
     def get_items(self, url):
-        return self.items_parser.retrive_items(url)
+        return self.items_parser.get_items(url)
