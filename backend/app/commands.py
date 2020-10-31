@@ -140,7 +140,7 @@ def launch_parser(parse, json):
 
 
 class ParserLaucher:
-    BASE_URL = 'https://ozon.ru'
+    BASE_URL = 'https://www.ozon.ru'
 
     def __init__(self, save_to_json=False):
         self.save_to_json = save_to_json

@@ -53,7 +53,7 @@ class Category(db.Model):
     def __init__(self, *args, **kwargs):
         if 'slug' not in kwargs:
             url = kwargs.get('url')
-            slug = re.search('/category/(\D+)-\d+', url).group(1)
+            slug = re.search(r'/category/(\D+)-\d+', url).group(1)
             slug = slug.replace('-', '_')
             kwargs['slug'] = slug
         else:
@@ -97,7 +97,7 @@ class Item(db.Model):
     def __init__(self, *args, **kwargs):
         if 'id' not in kwargs:
             url = kwargs.get('url')
-            id = re.search('^\/.+[\/-](\d+)\/$', url).group(1)
+            id = re.search(r'^\/.+[\/-](\d+)\/$', url).group(1)
             kwargs['id'] = id
         super().__init__(*args, **kwargs)
 

@@ -4,20 +4,20 @@ import json
 import time
 import asyncio
 import logging
-import concurrent.futures
 from queue import PriorityQueue, Empty
 from threading import Thread, Lock, Event
 from abc import ABC, abstractmethod
 from pathlib import Path
 from contextvars import ContextVar
+from typing import Tuple, List, Dict, AsyncGenerator
 
 import httpx
-from selenium import webdriver
-from bs4 import BeautifulSoup
-from fake_useragent import UserAgent
+from selenium import webdriver  # type: ignore
+from bs4 import BeautifulSoup  # type: ignore
+from fake_useragent import UserAgent  # type: ignore
 
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(filename='parser.log', filemode='w', level=logging.DEBUG)
 # threadLocal = threading.local()
 var_driver = ContextVar('driver', default=None)
 
@@ -31,7 +31,8 @@ class Fetcher:
     def __init__(self):
         self.user_agent = UserAgent()
 
-    async def fetch(self, session, url):
+    async def fetch(self, session: httpx.AsyncClient,
+                    url: str) -> Tuple[str, httpx.Response]:
         '''Make GET request to url.
         '''
         headers = {'User-Agent': self.user_agent.random}
@@ -39,33 +40,28 @@ class Fetcher:
             response = await session.get(url, headers=headers)
             if response.status_code != 200:
                 response.raise_for_status()
+        except httpx.HTTPStatusError:
+            logging.debug('Failed while parsing %s: status code %s',
+                          url, response.status_code)
         except httpx.HTTPError as e:
-            logging.debug('Error occured while parsing %s: %s', (url, e))
+            logging.debug('Failed while parsing %s: %s', url, e)
         return url, response
 
-    # def get_session(self):
-    #     limits = httpx.Limits(
-    #         max_keepalive_connections=self.KEEPALIVE_CONNECTIONS,
-    #         max_connections=self.MAX_CONNECTIONS
-    #     )
-    #     session = httpx.AsyncClient(limits=limits)
-    #     return session
-
-    async def fetch_pages_content(self, urls):
-        '''Fetch html content from page.
-        '''
-        # session = self.get_session()
-        tasks = []
-
+    def get_session(self) -> httpx.AsyncClient:
         limits = httpx.Limits(
             max_keepalive_connections=self.KEEPALIVE_CONNECTIONS,
             max_connections=self.MAX_CONNECTIONS
         )
-        timeout = httpx.Timeout(10.0, connect=60.0)
+        session = httpx.AsyncClient(limits=limits, timeout=10)
+        return session
 
-        # session = httpx.AsyncClient(limits=limits)
-        async with httpx.AsyncClient(limits=limits, timeout=timeout) as session:
+    async def fetch_pages_content(self, urls: List[str]) -> AsyncGenerator:
+        '''Fetch html content from page.
+        '''
+        tasks = []
+        session = self.get_session()
 
+        async with session:
             for url in urls:
                 tasks.append(
                     asyncio.create_task(
@@ -77,12 +73,10 @@ class Fetcher:
                 url, response = fetched_content
                 yield url, response.text
 
-            await session.aclose()
-
 
 class ContentParser(Fetcher, ABC):
 
-    async def get_pages_content(self, urls):
+    async def get_pages_content(self, urls: List[str]) -> List[Dict]:
         pages_content = []
 
         data = [result async for result in self.fetch_pages_content(urls)]
@@ -94,7 +88,7 @@ class ContentParser(Fetcher, ABC):
         return pages_content
 
     @abstractmethod
-    def parse(self, page_html):
+    def parse(self, page_html: str):
         pass
 
 
@@ -103,7 +97,7 @@ class CategoryParser(ContentParser):
     '''
     PATTERN = 'catalogMenu'
 
-    def process_pattern(self, page_json):
+    def process_pattern(self, page_json: Dict) -> List[Dict]:
         page_content = []
 
         for category in page_json['categories']:
@@ -115,7 +109,7 @@ class CategoryParser(ContentParser):
 
         return page_content
 
-    def parse(self, page_html):
+    def parse(self, page_html: str) -> List[Dict]:
         soup = BeautifulSoup(page_html, 'lxml')
 
         tag = soup.find(id=re.compile(self.PATTERN))
@@ -126,9 +120,8 @@ class CategoryParser(ContentParser):
 
         return page_content
 
-    def get_categories(self, url):
+    def get_categories(self, url: str) -> List[Dict]:
         categories = asyncio.run(self.get_pages_content([url]))
-        # categories = self.get_pages_content([url])
         return categories
 
 
@@ -141,7 +134,7 @@ class SubcategoryParser(ContentParser):
         'objectLine'
     ]
 
-    def process_subtree_pattern(self, page_json):
+    def process_subtree_pattern(self, page_json: Dict) -> List[Dict]:
         page_content = []
 
         for category in page_json['categories'][0]['categories']:
@@ -165,13 +158,13 @@ class SubcategoryParser(ContentParser):
         return page_content
 
     @staticmethod
-    def process_name(name):
+    def process_name(name: str) -> str:
         idx = name.find('по')
         if idx != -1:
             return name[:idx - 1]
         return name
 
-    def filter_sections(self, obj):
+    def filter_sections(self, obj: Dict) -> List[Dict]:
         sections = obj['sections']
         unique_urls = set(section['url'] for section in sections)
 
@@ -190,7 +183,7 @@ class SubcategoryParser(ContentParser):
             return new_sections
         return sections
 
-    def process_horizontalmenu_pattern(self, page_json):
+    def process_horizontalmenu_pattern(self, page_json: Dict) -> List[Dict]:
         page_content = []
 
         for category in page_json['categories']:
@@ -224,7 +217,7 @@ class SubcategoryParser(ContentParser):
 
         return page_content
 
-    def process_objectline_pattern(self, page_json):
+    def process_objectline_pattern(self, page_json: Dict) -> List[Dict]:
         page_content = []
 
         for category in page_json['items']:
@@ -239,7 +232,7 @@ class SubcategoryParser(ContentParser):
 
         return page_content
 
-    def parse(self, page_html):
+    def parse(self, page_html: str) -> List[Dict]:
         soup = BeautifulSoup(page_html, 'lxml')
 
         for pattern in self.PATTERNS:
@@ -262,7 +255,7 @@ class SubcategoryParser(ContentParser):
         page_content = function(page_json)
         return page_content
 
-    def get_subcategories(self, urls):
+    def get_subcategories(self, urls: List[str]) -> List[Dict]:
         subcategories = asyncio.run(self.get_pages_content(urls))
         return subcategories
 
@@ -289,7 +282,7 @@ class ProducerThread(Thread):
             current_page_number = self.parser.current_page_number
 
             logging.debug('Producer thread: Current page: %s, max page: %s',
-                          (current_page_number, max_page_number))
+                          current_page_number, max_page_number)
 
             if current_page_number == max_page_number:
                 logging.debug('Producer thread: Finishing...')
@@ -329,10 +322,12 @@ class ConsumerThread(Thread):
     def run(self):
         while True:
             try:
-                logging.debug('Consumer thread %s: Request item from queue', self.name)
+                logging.debug('Consumer thread %s: Request item from queue',
+                              self.name)
                 queue_item = self.queue.get(block=False)
             except Empty:
-                logging.debug('Consumer thread %s: Queue is empty, waiting...', self.name)
+                logging.debug('Consumer thread %s: Queue is empty, waiting...',
+                              self.name)
                 time.sleep(self.check_period)
             else:
                 if queue_item is None:
@@ -342,15 +337,15 @@ class ConsumerThread(Thread):
                     )
                     break
                 _, url = queue_item
-                logging.debug('Consumer thread %s: Got item from queue^ %s', (
-                              self.name, url))
+                logging.debug('Consumer thread %s: Got item from queue^ %s',
+                              self.name, url)
                 items = self.parser.get_page_items(url)
 
                 self.parser.update_items(items)
                 # self.parser.update_current_page_number(page_number)
 
-                logging.debug('Consumer thread %s: Task Done: processed %s', (
-                              self.name, url))
+                logging.debug('Consumer thread %s: Task Done: processed %s',
+                              self.name, url)
                 self.queue.task_done()
             # if terminate_event.is_set():
             #     break
@@ -365,6 +360,7 @@ class ItemsParser:
     LOAD_PAGE_PAUSE_TIME = 7
     SCROLL_PAUSE_TIME = 3
     MAX_SIZE_ITEMS_TRANSITION = 1000
+    MAX_PAGE_WITH_LAZY_LOADING = 11
 
     def __init__(self):
         driver_path = Path(__file__).parent.parent / 'chromedriver.exe'
@@ -408,26 +404,57 @@ class ItemsParser:
                 break
             last_height = new_height
 
+    def get_max_page_number(self, soup):
+        page_tags = soup.find_all(href=re.compile(r'page=\d+$'))
+        urls = set()
 
-    def get_max_page_number(self):
-        pass
+        for tag in page_tags:
+            page_number = re.search(
+                r'/category/\S+?page=(\d+)$',
+                tag['href']
+            ).group(1)
+            urls.add(int(page_number))
 
-    def process_tags(tags):
+        return max(urls) if urls else self.MAX_PAGE_WITH_LAZY_LOADING
+
+    # @staticmethod
+    # def get_item_external_url(tags):
+    #     return
+
+    @staticmethod
+    def get_item_name(tags):
+        for tag in tags:
+            name = tag.text
+            if name[0].isdigit() or name[0] == ' ':
+                continue
+            else:
+                return name
+        return ''
+
+    @staticmethod
+    def get_item_price(tags):
+        price = tags[1].find('span') or tags[-1].find('span')
+        return int(price.text.replace('\u2009', '')[:-1])
+
+    def process_tags(self, tags):
         items = []
         for tag in tags:
             inner_tags = tag.find_all(href=re.compile('context')) \
                 or tag.find_all(href=re.compile('product'))
             try:
                 item = {}
-                item['external_url'] = inner_tags[0]['href']
 
-                img = inner_tags[0].find('img')
-                item['image_url'] = img['src']
+                external_url = inner_tags[0]['href']
+                if not external_url.endswith('/'):
+                    continue
 
-                item['name'] = inner_tags[1].text
+                item['external_url'] = external_url
+                item['image_url'] = inner_tags[0].find('img')['src']
+                item['name'] = self.get_item_name(inner_tags)
+                if not item['name']:
+                    continue
 
-                price = inner_tags[-1].find('span')
-                item['price'] = int(price.text.replace('\u2009', '')[:-1])
+                item['price'] = self.get_item_price(inner_tags)
 
                 items.append(item)
 
@@ -436,16 +463,11 @@ class ItemsParser:
 
         return items
 
-    def parse(self, page_html):
-        soup = BeautifulSoup(page_html, 'lxml')
-        tags_containers = soup.select('div.widget-search-result-container')
+    def parse(self, soup):
+        tags_container = soup.select('div.widget-search-result-container')[0]
 
-        tags_for_page = []
-        for tags_container in tags_containers:
-            for style in ['grid-column-start:span 12;background-color:;',
-                          'grid-column-start: span 12;']:
-                tags = tags_container.find_all('div', attrs={'style': style})
-                tags_for_page.extend(tags)
+        tags_for_page = tags_container.find_all(
+            style=re.compile('grid-column-start'))
 
         items_from_tags = self.process_tags(tags_for_page)
         return items_from_tags
@@ -455,13 +477,19 @@ class ItemsParser:
         browser.get(url)
         time.sleep(self.LOAD_PAGE_PAUSE_TIME)
 
-        self.scroll_down_page(browser)
+        # self.scroll_down_page(browser)
+        soup = BeautifulSoup(browser.page_source, 'lxml')
 
-        max_page_number = self.get_max_page_number(browser.page_source)
+        max_page_number = self.get_max_page_number(soup)
         self.update_max_page_number(max_page_number)
 
-        items = self.parse(browser.page_source)
+        items = self.parse(soup)
         return items
+
+    @staticmethod
+    def get_pages_urls(url, numbers):
+        for page_number in numbers:
+            yield page_number, '{0}?page={1}'.format(url, page_number)
 
     def update_max_page_number(self, page_number):
         with self._max_page_lock:
@@ -481,11 +509,6 @@ class ItemsParser:
                 self.all_items = []
 
         # yield self.all_items
-
-    @staticmethod
-    def get_pages_urls(url, numbers):
-        for page_number in numbers:
-            yield page_number, '{0}?page={1}'.format(url, page_number)
 
     def get_items(self, url):
         self.all_items = []

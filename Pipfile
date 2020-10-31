@@ -12,8 +12,6 @@ marshmallow = "*"
 marshmallow-sqlalchemy = "*"
 flask-marshmallow = "*"
 psycopg2 = "*"
-factory-boy = "*"
-coverage = "*"
 beautifulsoup4 = "*"
 fake-useragent = "*"
 sqlalchemy-utils = "*"
@@ -23,6 +21,9 @@ selenium = "*"
 python-dotenv = "*"
 
 [dev-packages]
+mypy = "*"
+factory-boy = "*"
+coverage = "*"
 
 [requires]
 python_version = "3.7"

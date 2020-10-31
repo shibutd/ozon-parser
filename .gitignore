@@ -35,4 +35,5 @@ yarn-error.log*
 tailwind.output.css
 
 *.json
+*.log
 !sample-data.json
