@@ -2,7 +2,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from app import create_app
-from app.commands import launch_parser
+from app.commands.launch_parser import launch_parser
 
 
 class TestCommands(TestCase):
@@ -24,17 +24,17 @@ class TestCommands(TestCase):
     def tearDownClass(cls):
         cls.app_context.pop()
 
-    @patch('app.commands.ParserLaucher.get_and_create_parent_categories')
+    @patch('app.commands.utils.ParserLaucher.fetch_parent_categories')
     def test_launch_parser_parent(self, mock_launcher):
         self.runner.invoke(launch_parser, ['--parse', 'categories'])
         self.assertTrue(mock_launcher.called)
 
-    @patch('app.commands.Parser.get_parent_categories')
-    def test_launch_parser_called_parser_parent(self, mock_parser):
+    @patch('app.commands.utils.Parser.get_parent_categories')
+    def test_launch_parser_calls_parser_parent(self, mock_parser):
         self.runner.invoke(launch_parser, ['--parse', 'categories'])
         self.assertTrue(mock_parser.called)
 
-    @patch('app.commands.ParserLaucher.save_to_jsonfile')
+    @patch('app.commands.utils.ParserLaucher.save_to_jsonfile')
     def test_launch_parser_parent_called_json(self, mock_launcher):
         self.runner.invoke(launch_parser, ['--parse', 'categories'])
         self.assertFalse(mock_launcher.called)
@@ -42,12 +42,12 @@ class TestCommands(TestCase):
         self.runner.invoke(launch_parser, ['--parse', 'categories', '--json'])
         self.assertTrue(mock_launcher.called)
 
-    @patch('app.commands.ParserLaucher.get_and_create_subcategories')
+    @patch('app.commands.utils.ParserLaucher.fetch_subcategories')
     def test_launch_parser_subcategories(self, mock_launcher):
         self.runner.invoke(launch_parser, ['--parse', 'subcategories'])
         self.assertTrue(mock_launcher.called)
 
-    @patch('app.commands.ParserLaucher.get_and_create_items')
+    @patch('app.commands.utils.ParserLaucher.fetch_items')
     def test_launch_parser_items(self, mock_launcher):
         self.runner.invoke(launch_parser, ['--parse', 'items'])
         self.assertTrue(mock_launcher.called)
