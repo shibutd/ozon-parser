@@ -2,6 +2,7 @@ import re
 import json
 import asyncio
 import logging
+from urllib.parse import urlparse
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Dict, AsyncGenerator
 
@@ -74,9 +75,12 @@ class ContentParser(Fetcher, ABC):
         """
         pages_content = []
 
-        data = [result async for result in self.fetch_pages_content(urls)]
+        async for url, page_html in self.fetch_pages_content(urls):
 
-        for url, page_html in data:
+            logging.debug(
+                'Parsing url: %s',
+                url
+            )
             page_content = self.parse(page_html)
             pages_content.append({url: page_content})
 
@@ -136,30 +140,6 @@ class SubcategoryParser(ContentParser):
         'objectLine'
     ]
 
-    def get_filtered_sections(
-        self,
-        sections: List[Dict[str, str]],
-        obj_url: str
-    ) -> List[Dict[str, str]]:
-        """Filter out sections, leaving only those
-        with unique url.
-        """
-        unique_urls = set()
-        unique_urls.add(obj_url)
-
-        new_sections = []
-
-        for section in sections:
-            url = section['url']
-
-            if url in unique_urls:
-                continue
-            else:
-                new_sections.append(section)
-                unique_urls.add(url)
-
-        return new_sections
-
     def process_subtree_pattern(
         self,
         page_json: Dict[str, List[Dict]]
@@ -169,22 +149,12 @@ class SubcategoryParser(ContentParser):
         page_content = []
 
         for category in page_json['categories'][0]['categories']:
-            category_dict = {
-                'name': category['info']['name'].capitalize(),
-                'url': '/category/{}'.format(category['info']['urlValue']),
-                'sections': []
-            }
-
-            for section in category['categories']:
-                category_dict['sections'].append(
-                    {
-                        'name': section['info']['name'],
-                        'url': '/category/{}'.format(
-                            section['info']['urlValue'])
-                    }
-                )
-
-            page_content.append(category_dict)
+            try:
+                subtree_pattern_category = SubtreePattern(category)
+            except Exception:
+                continue
+            else:
+                page_content.append(subtree_pattern_category.as_dict())
 
         return page_content
 
@@ -198,34 +168,11 @@ class SubcategoryParser(ContentParser):
 
         for category in page_json['categories']:
             try:
-                if category['url'].startswith('/category'):
-                    category_dict = {
-                        'name': category['title'].capitalize(),
-                        'url': category['url'],
-                        'sections': []
-                    }
-
-                    for section in category['section']:
-                        section_dict = {
-                            'name': section['title'],
-                            'url': section['url']
-                        }
-
-                        if section_dict['url'].startswith('/category'):
-                            section_dict['name'].replace(' ', '')
-                            section_dict['url'].replace(' ', '')
-
-                            category_dict['sections'].append(section_dict)
-
-                    page_content.append(category_dict)
-            except KeyError:
+                horiz_pattern_category = HorizontalPattern(category)
+            except Exception:
                 continue
-
-        # Remove repeating values of 'sections'
-        for obj in page_content:
-            obj_url = obj['url']
-            obj['sections'] = self.get_filtered_sections(
-                obj['sections'], obj_url)
+            else:
+                page_content.append(horiz_pattern_category.as_dict())
 
         return page_content
 
@@ -239,13 +186,11 @@ class SubcategoryParser(ContentParser):
 
         for category in page_json['items']:
             try:
-                category_dict = {
-                    'name': category['title'],
-                    'url': category['link']
-                }
-                page_content.append(category_dict)
-            except KeyError:
+                objline_pattern_category = ObjectlinePattern(category)
+            except Exception:
                 continue
+            else:
+                page_content.append(objline_pattern_category.as_dict())
 
         return page_content
 
@@ -281,3 +226,166 @@ class SubcategoryParser(ContentParser):
     def get_subcategories(self, urls: List[str]) -> List[Dict]:
         subcategories = asyncio.run(self.get_pages_content(urls))
         return subcategories
+
+
+class InvalidCategoryError(Exception):
+    """Exception raised when invalid category passed.
+    """
+    pass
+
+
+class Pattern(ABC):
+    """Abstract class for objects that respresents patterns used
+    for parsing subcategory pages.
+    """
+
+    def __init__(self, category):
+        self.name = self.extract_name(category)
+        self.url = self.extract_url(category)
+        self.sections = self.extract_sections(category)
+
+    @abstractmethod
+    def extract_name(self, category):
+        """Extract category's name.
+        """
+        pass
+
+    @abstractmethod
+    def extract_url(self, category):
+        """Extract category's urls.
+        """
+        pass
+
+    @abstractmethod
+    def extract_sections(self, category):
+        """Extract category's children categories (sections).
+        """
+        pass
+
+    @staticmethod
+    def add_slash_to_end(url):
+        if url and url[-1] != '/':
+            url = '{}/'.format(url)
+        return url
+
+    @staticmethod
+    def remove_query(url):
+        return urlparse(url).path
+
+    def get_cleaned_url(self, url):
+        """Clean url after extracting.
+        """
+        url = self.remove_query(url)
+        return self.add_slash_to_end(url.strip())
+
+    def filter_sections(self, sections):
+        """Filter out section categories to avoid duplicates.
+        """
+        unique_urls = set()
+        unique_urls.add(self.url)
+
+        filtered_sections = []
+
+        for section in sections:
+            url = section['url']
+            if url in unique_urls:
+                continue
+            else:
+                filtered_sections.append(section)
+                unique_urls.add(url)
+
+        return filtered_sections
+
+    def as_dict(self):
+        """Display pattern object as dictionary.
+        """
+        return {
+            'name': self.name,
+            'url': self.url,
+            'sections': self.sections
+        }
+
+
+class ObjectlinePattern(Pattern):
+    """Represents pattern 'objectLine'.
+    """
+
+    def extract_name(self, category):
+        if 'title' not in category:
+            raise InvalidCategoryError
+        return category['title']
+
+    def extract_url(self, category):
+        if 'link' not in category:
+            raise InvalidCategoryError
+        url = category['link']
+        return self.add_slash_to_end(url)
+
+    def extract_sections(self, category):
+        return []
+
+
+class SubtreePattern(Pattern):
+    """Represents pattern 'searchCategorySubtree'.
+    """
+
+    def extract_name(self, category):
+        if 'info' not in category or 'name' not in category['info']:
+            raise InvalidCategoryError
+        return category['info']['name']
+
+    def extract_url(self, category):
+        if 'info' not in category or 'urlValue' not in category['info']:
+            raise InvalidCategoryError
+        url = '/category/{}'.format(category['info']['urlValue'])
+        return self.get_cleaned_url(url)
+
+    def extract_sections(self, category):
+        result = []
+        sections = category.get('categories')
+        if not sections:
+            return result
+
+        for section in sections:
+            try:
+                name = self.extract_name(section)
+                url = self.extract_url(section)
+            except InvalidCategoryError:
+                continue
+            else:
+                result.append({'name': name, 'url': url})
+
+        return self.filter_sections(result)
+
+
+class HorizontalPattern(Pattern):
+    """Represents pattern 'catalogHorizontalMenu'.
+    """
+
+    def extract_name(self, category):
+        if 'title' not in category:
+            raise InvalidCategoryError
+        return category['title'].capitalize()
+
+    def extract_url(self, category):
+        url = category.get('url')
+        if not url or not url.startswith('/category'):
+            raise InvalidCategoryError
+        return self.get_cleaned_url(url)
+
+    def extract_sections(self, category):
+        result = []
+        sections = category.get('section')
+        if not sections:
+            return result
+
+        for section in sections:
+            try:
+                name = self.extract_name(section)
+                url = self.extract_url(section)
+            except InvalidCategoryError:
+                continue
+            else:
+                result.append({'name': name, 'url': url})
+
+        return self.filter_sections(result)

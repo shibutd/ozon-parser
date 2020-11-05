@@ -13,7 +13,7 @@ from . import cmd_bp
 @cmd_bp.cli.command()
 @click.argument('path')
 def import_data(path):
-    """Import data from .json file.
+    """Import data from .json file saved by parser.
     """
     global_path = Path(path)
     if not global_path.exists() or not global_path.is_dir():
@@ -63,12 +63,15 @@ def import_data(path):
 
     # Import items
     for file_name in data_importer.get_files_names(patterns['items']):
-        items_slug = re.search(
+        # Get category's slug name from file's name
+        category_slug = re.search(
             r'items_([a-zA-Z_]+)_',
             file_name
         ).group(1)
+        # Find category with found slug
         items_category = Category.query.filter_by(
-            slug=items_slug).first()
+            slug=category_slug).first()
+
         if items_category:
             items = data_importer.get_data_from_file(file_name)
             try:

@@ -1,16 +1,17 @@
 """initial
 
-Revision ID: 42ef4dca23fd
-Revises: 
-Create Date: 2020-10-01 08:41:20.974498
+Revision ID: f55f9bacec73
+Revises:
+Create Date: 2020-11-05 06:52:53.152581
 
 """
 from alembic import op
 import sqlalchemy as sa
 import sqlalchemy_utils
 
+
 # revision identifiers, used by Alembic.
-revision = '42ef4dca23fd'
+revision = 'f55f9bacec73'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -29,8 +30,8 @@ def upgrade():
     op.create_index('ix_categories_path', 'categories', ['path'], unique=False, postgresql_using='gist')
     op.create_table('items',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('name', sa.String(length=128), nullable=False),
-    sa.Column('url', sa.String(length=128), nullable=False),
+    sa.Column('name', sa.String(length=256), nullable=False),
+    sa.Column('url', sa.String(length=256), nullable=False),
     sa.Column('image_url', sa.String(length=128), nullable=True),
     sa.Column('category_slug', sa.String(length=64), nullable=False),
     sa.ForeignKeyConstraint(['category_slug'], ['categories.slug'], ondelete='CASCADE'),

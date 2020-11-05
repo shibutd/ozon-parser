@@ -81,8 +81,8 @@ class Item(db.Model):
     __tablename__ = 'items'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(128), nullable=False)
-    url = db.Column(db.String(128), unique=True, nullable=False)
+    name = db.Column(db.String(256), nullable=False)
+    url = db.Column(db.String(256), unique=True, nullable=False)
     image_url = db.Column(db.String(128))
     category_slug = db.Column(
         db.String(64), db.ForeignKey('categories.slug', ondelete='CASCADE'),
