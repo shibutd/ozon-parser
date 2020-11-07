@@ -11,6 +11,13 @@ items_wo_prices_schema = ItemSchema(exclude=('prices',))
 item_schema = ItemSchema()
 
 parser = reqparse.RequestParser()
+parser.add_argument(
+    'category',
+    type=str,
+    required=True,
+    location='args',
+    help='Required query parameter'
+)
 
 
 class CategoryListResource(Resource):
@@ -20,7 +27,25 @@ class CategoryListResource(Resource):
     def get(self):
         categories = Category.query.filter(
             Category.is_parent()).all()
+
         results = category_schema.dump(categories, many=True)
+        return results
+
+
+class SubcategoryListResource(Resource):
+    '''API endpoint for list of categories that has no children.
+    '''
+
+    def get(self, slug):
+        category = Category.query.get_or_404(slug)
+
+        children_categories = Category.query.filter(
+            Category.has_no_children(),
+            Category.path.descendant_of(category.path)
+        ).all()
+
+        results = category_schema.dump(
+            children_categories, many=True)
         return results
 
 
@@ -29,14 +54,6 @@ class ItemListResource(Resource):
     '''
 
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument(
-            'category',
-            type=str,
-            required=True,
-            location='args',
-            help='Required query parameter'
-        )
         args = parser.parse_args()
         category_slug = args['category']
 
@@ -59,7 +76,6 @@ class ItemListResource(Resource):
         )
 
         results = pagination_helper.paginate_query()
-
         return results
 
 
