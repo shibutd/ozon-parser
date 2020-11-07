@@ -1,15 +1,22 @@
 import React, { useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 import DropdownItem from './DropdownItem';
+import DropdownSubItem from './DropdownSubItem';
 import { useOnClickOutside } from '../customHooks';
 
 
-export default function Dropdown(props) {
+const Dropdown = React.memo((props) => {
   const { options, category, changeCategory } = props;
   const [visible, setVisible] = useState(false);
   const refDropdown = useRef(null);
 
   useOnClickOutside(refDropdown, () => closeDropdownPopover());
+
+  const subItems = [
+    {'name': 'First subject', 'slug': 'first_subject'},
+    {'name': 'Second subject', 'slug': 'second_subject'},
+    {'name': 'Third subject', 'slug': 'third_subject'}
+  ]
 
   const openDropdownPopover = () => {
     setVisible(true);
@@ -25,7 +32,7 @@ export default function Dropdown(props) {
   };
 
   return (
-    <div ref={refDropdown}>
+    <div className="z-30" ref={refDropdown}>
       <button
         className="w-full font-semibold uppercase text-left px-3 py-3 mr-1 rounded shadow hover:shadow-lg outline-none focus:outline-none bg-white text-gray-600"
         style={{ transition: "all .15s ease" }}
@@ -36,7 +43,7 @@ export default function Dropdown(props) {
             : openDropdownPopover();
         }}
       >
-        {!category ? 'Select...' : category}
+        {!category.name ? 'Select...' : category.name}
       </button>
       <div
         className={
@@ -44,12 +51,12 @@ export default function Dropdown(props) {
           "absolute w-11/12 mt-2 text-base z-50 float-left list-none text-left rounded shadow-lg"
         }
       >
-      
+
       {options.status === 'loading' && (
         <div
           className="py-2 px-4 text-md font-normal block w-full whitespace-no-wrap bg-white text-gray-600"
         >
-        Loading...
+          Loading...
         </div>
       )}
 
@@ -57,18 +64,26 @@ export default function Dropdown(props) {
         <div
           className="py-2 px-4 text-md font-normal block w-full whitespace-no-wrap bg-white text-gray-600"
         >
-        Error retreiving categories. Please try again later
+          Error retreiving categories. Please try again later
         </div>
       )}
 
       {options.status === 'success' && (
-        <div>
+        <div className="overflow-x-hidden overflow-y-visible h-56 z-30">
           {options.data.map(option => (
             <DropdownItem
               key={option.slug}
               option={option}
-              handleClick={handleSelect}
-            />
+
+            >
+              {subItems.map(item => (
+                <DropdownSubItem
+                  key={item.slug}
+                  option={item}
+                  handleClick={handleSelect}
+                />
+              ))}
+            </DropdownItem>
           ))}
         </div>
       )}
@@ -76,10 +91,12 @@ export default function Dropdown(props) {
       </div>
     </div>
   );
-}
+})
 
 Dropdown.propTypes = {
   options: PropTypes.object.isRequired,
-  category: PropTypes.string.isRequired,
+  category: PropTypes.object.isRequired,
   changeCategory: PropTypes.func.isRequired,
 }
+
+export default Dropdown;

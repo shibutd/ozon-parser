@@ -19,9 +19,9 @@ async function fetchItems(key, page, category) {
   promise.cancel = () => {
     source.cancel('Query was cancelled')
   };
- 
+
   return promise.data;
-} 
+}
 
 export default function List() {
   const { setModal } = useContext(ModalContext);
@@ -29,7 +29,7 @@ export default function List() {
   const refRightButtonClicked = useRef(false);
   const refLeftButtonClicked = useRef(false);
   const { category } = useParams();
-  const { 
+  const {
     resolvedData,
     latestData,
     status
@@ -39,6 +39,18 @@ export default function List() {
     refetchOnWindowFocus: false,
   });
 
+  const variants = {
+    hiddenFromLeft: (i) => ({ x: -50 * i, opacity: 0 }),
+    hiddenFromRight: (i) => ({ x: 50 * i, opacity: 0 }),
+    visible: (i) => ({
+      x: 0,
+      opacity: 1,
+      transition: { delay: i * 0.025, duration: 0.3 }
+    }),
+    removedToRight: { x: 100, opacity: 0 },
+    removedToLeft: { x: -100, opacity: 0}
+  };
+
   // function convertPrice(price) {
   //   let priceString = price.toString();
   //   const length = priceString.length;
@@ -46,9 +58,9 @@ export default function List() {
   //     const index = length - 3
   //     priceString = `${priceString.substring(0, index)} ${priceString.substring(index)}`
   //   }
-  //   return `${priceString} P` 
+  //   return `${priceString} P`
   // };
-  
+
   function decreasePage() {
     refRightButtonClicked.current = false;
     refLeftButtonClicked.current = true;
@@ -84,44 +96,37 @@ export default function List() {
   if (status === 'success') {
     return (
       <div className="relative container mx-auto w-11/12 sm:w-8/12 sm:my-8">
-          <ul 
-            className="flex justify-center flex-col font-bold leading-normal tracking-wider"
-          >
-            <motion.li 
-              className="hidden sm:flex justify-between uppercase font-title rounded-lg py-3 my-2 italic bg-red-500 text-gray-300 shadow-md"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-              <div className="w-9/12 ml-12 text-left">
-                Product Name
-              </div>
-              {/*<div className="w-3/12 text-center">
-                Last Price
-              </div>*/}
-            </motion.li>
-          <AnimatePresence exitBeforeEnter>
+        {resolvedData.results.length > 0 ? (
+        <>
+        <ul
+          className="flex justify-center flex-col font-bold leading-normal tracking-wider"
+        >
+          <motion.li
+            className="hidden sm:flex justify-between uppercase font-title rounded-lg py-3 my-2 italic bg-red-500 text-gray-300 shadow-md"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+            <div className="w-9/12 ml-12 text-left">
+              Product Name
+            </div>
+            {/*<div className="w-3/12 text-center">
+              Last Price
+            </div>*/}
+          </motion.li>
+        <AnimatePresence exitBeforeEnter>
+          <motion.div>
             {resolvedData.results.map((item, i) => (
-              <motion.li
+              <motion.div
                 key={item.id}
                 className="sm:flex rounded-lg shadow-md cursor-pointer py-3 my-2 bg-gradient-to-r from-red-500 to-indigo-700 text-gray-300 transition duration-300 hover:to-red-500 hover:text-gray-100 hover:shadow-lg"
                 onClick={e => hadndleClick(e, item)}
-                variants={{
-                  hiddenFromLeft: (i) => ({ x: -50 * i, opacity: 0 }),
-                  hiddenFromRight: (i) => ({ x: 50 * i, opacity: 0 }),
-                  visible: (i) => ({ 
-                    x: 0, 
-                    opacity: 1, 
-                    transition: { delay: i * 0.025, duration: 0.3 } 
-                  }),
-                  removedToRight: { x: 100, opacity: 0 },
-                  removedToLeft: { x: -100, opacity: 0}
-                }}
+                variants={variants}
+                animate='visible'
                 initial={
                   refRightButtonClicked.current
                     ? 'hiddenFromLeft'
                     : 'hiddenFromRight'
                 }
-                animate='visible'
                 exit={
                   refRightButtonClicked.current
                     ? 'removedToLeft'
@@ -136,13 +141,14 @@ export default function List() {
                 {/*<div className="w-6/12 sm:w-3/12 ml-2 sm:ml-8 sm:text-center">
                   {convertPrice(item.price)}
                 </div>*/}
-              </motion.li>
+              </motion.div>
             ))}
-          </AnimatePresence>
-          </ul>
+          </motion.div>
+        </AnimatePresence>
+        </ul>
 
         <div className="flex justify-end w-full pt-2 pr-2 text-gray-300">
-          <motion.button 
+          <motion.button
             onClick={decreasePage}
             className="mr-2 bg-red-500 rounded-full h-12 w-12 flex items-center justify-center shadow-md focus:outline-none transition duration-200 hover:shadow-lg"
             whileHover={{ scale: 1.05 }}
@@ -160,7 +166,14 @@ export default function List() {
           </motion.button>
 
         </div>
+        </>)
+        : (
+          <div className="text-4xl font-bold text-white text-center pt-16">
+            No items in this category yet...
+          </div>
+        )}
       </div>
+
     );
   };
 }

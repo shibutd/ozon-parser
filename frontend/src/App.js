@@ -19,9 +19,9 @@ export default function App() {
   return (
     <Router>
       <main>
-        <div className="relative pt-8 pb-32 bg-indigo-600"
+        <div className="relative pt-8 pb-32 bg-indigo-600 overflow-x-hidden"
             style={{
-              minHeight: "72vh"
+              minHeight: "84vh"
             }}>
           <div className="container relative mx-auto">
             <a
@@ -94,7 +94,7 @@ export default function App() {
                   msg="Search products by site URL, ID or Category"
                 />
               </motion.div>
-              <motion.div 
+              <motion.div
                 className="w-full md:w-4/12 px-4 text-center"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.95 }}
@@ -106,7 +106,7 @@ export default function App() {
                   msg="Price history over last several months"
                 />
               </motion.div>
-              <motion.div 
+              <motion.div
                 className="md:pt-6 px-4 w-full md:w-4/12 text-center"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.95 }}
@@ -122,7 +122,7 @@ export default function App() {
           </div>
         </section>
         {/* Infotabs section End */}
-        
+
       </main>
     </Router>
   );
