@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 import DropdownItem from './DropdownItem';
-import DropdownSubItem from './DropdownSubItem';
 import { useOnClickOutside } from '../customHooks';
 
 
@@ -11,12 +10,6 @@ const Dropdown = React.memo((props) => {
   const refDropdown = useRef(null);
 
   useOnClickOutside(refDropdown, () => closeDropdownPopover());
-
-  const subItems = [
-    {'name': 'First subject', 'slug': 'first_subject'},
-    {'name': 'Second subject', 'slug': 'second_subject'},
-    {'name': 'Third subject', 'slug': 'third_subject'}
-  ]
 
   const openDropdownPopover = () => {
     setVisible(true);
@@ -74,16 +67,8 @@ const Dropdown = React.memo((props) => {
             <DropdownItem
               key={option.slug}
               option={option}
-
-            >
-              {subItems.map(item => (
-                <DropdownSubItem
-                  key={item.slug}
-                  option={item}
-                  handleClick={handleSelect}
-                />
-              ))}
-            </DropdownItem>
+              handleClick={handleSelect}
+            />
           ))}
         </div>
       )}

@@ -1,3 +1,5 @@
-export const getCategoriesUrl = '/api/categories/';
+export const getCategoriesUrl = '/api/categories';
 
-export const getItemsUrl = `/api/items/`;
+export const getSubcategoriesUrl = `/api/subcategories`;
+
+export const getItemsUrl = `/api/items`;
