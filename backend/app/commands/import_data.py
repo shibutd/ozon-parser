@@ -31,6 +31,8 @@ def import_data(path):
         'items': 'items*',
     }
     # Import parent categories
+    click.echo('Importing parent categories...')
+
     for categories in data_importer.get_data_from_multiple_files(
             patterns['categories']):
         try:
@@ -44,6 +46,8 @@ def import_data(path):
             sys.exit()
 
     # Import subcategories
+    click.echo('Importing subcategories...')
+
     for subcategories in data_importer.get_data_from_multiple_files(
             patterns['subcategories']):
         parent_categories = Category.query.filter(
@@ -62,6 +66,8 @@ def import_data(path):
             sys.exit()
 
     # Import items
+    click.echo('Importing items...')
+
     for file_name in data_importer.get_files_names(patterns['items']):
         # Get category's slug name from file's name
         category_slug = re.search(
@@ -73,6 +79,8 @@ def import_data(path):
             slug=category_slug).first()
 
         if items_category:
+            click.echo('Importing items category: %s' % items_category.name)
+
             items = data_importer.get_data_from_file(file_name)
             try:
                 database_saver.save_items_to_database(

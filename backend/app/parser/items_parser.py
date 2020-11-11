@@ -170,6 +170,9 @@ class ItemsParser:
             if headless:
                 options.add_argument('headless')
             options.add_argument('user_agent={}'.format(UserAgent().random))
+            # Adding options to avoid accept certificate errors
+            options.add_argument('--ignore-certificate-errors')
+            options.add_argument('--ignore-ssl-errors')
             driver = webdriver.Chrome(options=options, **self.executable_path)
             var_driver.set(driver)
 
@@ -271,6 +274,7 @@ class ItemsParser:
         """
         # Load browser, open url and wait content to load
         browser = self.get_browser(headless=False)
+        time.sleep(0.01)
         browser.get(url)
         time.sleep(self.LOAD_PAGE_PAUSE_TIME)
         # Scroll browser's page down to load javascript content.
@@ -293,9 +297,10 @@ class ItemsParser:
         for page_number in numbers:
             yield page_number, '{0}?page={1}'.format(url, page_number)
 
-    def update_max_page_number(self, page_number: int) -> None:
+    def update_max_page_number(
+            self, page_number: int, force: bool = False) -> None:
         with self._max_page_lock:
-            if page_number > self.max_page_number:
+            if page_number > self.max_page_number or force:
                 self.max_page_number = page_number
 
     def update_current_page_number(self, page_number: int) -> None:
@@ -335,7 +340,7 @@ class ItemsParser:
         # Update maximum and current page's number to start from 1
         logging.debug('Main thread: Starting session...')
         self.update_current_page_number(0)
-        self.update_max_page_number(1)
+        self.update_max_page_number(1, force=True)
         update_q_event.set()
 
         producer_thread.join()
