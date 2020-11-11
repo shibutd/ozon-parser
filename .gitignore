@@ -36,4 +36,4 @@ tailwind.output.css
 
 *.json
 *.log
-!sample-data.json
+!*_sample.json

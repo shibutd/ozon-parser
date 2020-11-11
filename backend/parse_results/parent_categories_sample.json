@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Электроника",
+    "url": "/category/elektronika-15500/"
+  },
+  {
+    "name": "Дом и сад",
+    "url": "/category/dom-i-sad-14500/"
+  },
+  {
+    "name": "Красота и здоровье",
+    "url": "/category/krasota-i-zdorove-6500/"
+  },
+  {
+    "name": "Бытовая техника",
+    "url": "/category/bytovaya-tehnika-10500/"
+  },
+  {
+    "name": "Автотовары",
+    "url": "/category/avtotovary-8500/"
+  },
+  {
+    "name": "Мебель",
+    "url": "/category/mebel-15000/"
+  },
+  {
+    "name": "Хобби и творчество",
+    "url": "/category/hobbi-i-tvorchestvo-13500/"
+  }
+]

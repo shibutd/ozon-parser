@@ -1,0 +1,228 @@
+{
+  "/category/elektronika-15500/": [
+    {
+      "name": "Смартфоны и смарт-часы",
+      "url": "/category/telefony-i-smart-chasy-15501/",
+      "sections": [
+        {
+          "name": "Смартфоны",
+          "url": "/category/smartfony-15502/"
+        },
+        {
+          "name": "Умные часы и фитнес-браслеты",
+          "url": "/category/umnye-chasy-i-fitnes-braslety-1761/"
+        }
+      ]
+    },
+    {
+      "name": "Ноутбуки и планшеты",
+      "url": "/category/noutbuki-planshety-i-elektronnye-knigi-8730/",
+      "sections": [
+        {
+          "name": "Ноутбуки",
+          "url": "/category/noutbuki-15692/"
+        }
+      ]
+    },
+    {
+      "name": "Компьютеры",
+      "url": "/category/kompyutery-i-komplektuyushchie-15690/",
+      "sections": [
+        {
+          "name": "Мониторы и аксессуары",
+          "url": "/category/monitory-i-aksessuary-15737/"
+        },
+        {
+          "name": "Компьютерные комплектующие",
+          "url": "/category/kompyuternye-komplektuyushchie-15709/"
+        }
+      ]
+    },
+    {
+      "name": "Телевизоры",
+      "url": "/category/televizory-i-videotehnika-15527/",
+      "sections": [
+        {
+          "name": "Телевизоры",
+          "url": "/category/televizory-15528/"
+        }
+      ]
+    }
+  ],
+  "/category/bytovaya-tehnika-10500/": [
+    {
+      "name": "Крупная бытовая техника",
+      "url": "/category/krupnaya-bytovaya-tehnika-10501/",
+      "sections": [
+        {
+          "name": "Холодильники",
+          "url": "/category/holodilniki-10502/"
+        },
+        {
+          "name": "Стиральные машины",
+          "url": "/category/stiralnye-mashiny-10507/"
+        }
+      ]
+    },
+    {
+      "name": "Техника для кухни",
+      "url": "/category/tehnika-dlya-kuhni-10523/",
+      "sections": [
+        {
+          "name": "Кофеварки и кофемашины",
+          "url": "/category/kofevarki-i-kofemashiny-10530/"
+        },
+        {
+          "name": "Электрические чайники и термопоты",
+          "url": "/category/elektricheskie-chayniki-i-termopoty-10524/"
+        }
+      ]
+    },
+    {
+      "name": "Техника для дома",
+      "url": "/category/tehnika-dlya-doma-10647/",
+      "sections": [
+        {
+          "name": "Пылесосы и аксессуары",
+          "url": "/category/pylesosy-i-aksessuary-10648/"
+        },
+        {
+          "name": "Утюги и отпариватели",
+          "url": "/category/utyugi-i-otparivateli-10679/"
+        }
+      ]
+    }
+  ],
+  "/category/krasota-i-zdorove-6500/": [
+    {
+      "name": "Лицо",
+      "url": "/category/uhod-za-litsom-6559/",
+      "sections": [
+        {
+          "name": "Увлажнение и питание",
+          "url": "/category/uvlazhnenie-i-pitanie-6561/"
+        },
+        {
+          "name": "Очищение и умывание",
+          "url": "/category/ochishchenie-6560/"
+        }
+      ]
+    },
+    {
+      "name": "Макияж",
+      "url": "/category/makiyazh-6501/",
+      "sections": [
+        {
+          "name": "Для лица",
+          "url": "/category/litso-6502/"
+        },
+        {
+          "name": "Для глаз",
+          "url": "/category/kosmetika-dlya-glaz-6516/"
+        }
+      ]
+    }
+  ],
+  "/category/dom-i-sad-14500/": [
+    {
+      "name": "Посуда",
+      "url": "/category/posuda-i-kuhonnye-prinadlezhnosti-14501/",
+      "sections": [
+        {
+          "name": "Посуда для приготовления",
+          "url": "/category/posuda-dlya-prigotovleniya-19005/"
+        },
+        {
+          "name": "Столовая посуда",
+          "url": "/category/stolovaya-posuda-19013/"
+        }
+      ]
+    },
+    {
+      "name": "Дача и сад",
+      "url": "/category/tovary-dlya-dachi-14633/",
+      "sections": [
+        {
+          "name": "Садовая мебель",
+          "url": "/category/sadovaya-mebel-14678/"
+        },
+        {
+          "name": "Садовый инструмент",
+          "url": "/category/sadovyy-inventar-i-instrumenty-14722/"
+        }
+      ]
+    }
+  ],
+  "/category/avtotovary-8500/": [
+    {
+      "name": "Масла и автохимия",
+      "url": "/category/masla-i-avtohimiya-8514/",
+      "sections": [
+        {
+          "name": "Моторные масла",
+          "url": "/category/motornye-masla-8517/"
+        },
+        {
+          "name": "Присадки и добавки",
+          "url": "/category/prisadki-i-dobavki-31089/"
+        }
+      ]
+    },
+    {
+      "name": "Шины и диски",
+      "url": "/category/shiny-i-diski-8501/",
+      "sections": [
+        {
+          "name": "Шины",
+          "url": "/category/shiny-8502/"
+        },
+        {
+          "name": "Диски",
+          "url": "/category/kolesnye-diski-8504/"
+        }
+      ]
+    }
+  ],
+  "/category/hobbi-i-tvorchestvo-13500/": [
+    {
+      "name": "Настольные и карточные игры",
+      "url": "/category/nastolnye-i-kartochnye-igry-13506/",
+      "sections": [
+        {
+          "name": "Настольные игры",
+          "url": "/category/nastolnye-igry-13507/"
+        },
+        {
+          "name": "Шахматы",
+          "url": "/category/shahmaty-13509/"
+        }
+      ]
+    }
+  ],
+  "/category/mebel-15000/": [
+    {
+      "name": "Мягкая мебель",
+      "url": "/category/myagkaya-mebel-15017/",
+      "sections": [
+        {
+          "name": "Кресла-мешки",
+          "url": "/category/kresla-meshki-15020/"
+        },
+        {
+          "name": "Компьютерные кресла",
+          "url": "/category/ofisnye-kresla-15113/"
+        }
+      ]
+    },
+    {
+      "name": "Столы и стулья",
+      "url": "/category/stoly-stulya-i-kresla-15027/",
+      "sections": [
+        {
+          "name": "Компьютерные и письменные столы",
+          "url": "/category/kompyuternye-stoly-15029/"
+        }
+      ]
+    }
+  ]
+}
