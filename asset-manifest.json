@@ -1,8 +1,8 @@
 {
   "files": {
     "main.css": "/ozon-parser/static/css/main.2e043e20.chunk.css",
-    "main.js": "/ozon-parser/static/js/main.28042369.chunk.js",
-    "main.js.map": "/ozon-parser/static/js/main.28042369.chunk.js.map",
+    "main.js": "/ozon-parser/static/js/main.d520e680.chunk.js",
+    "main.js.map": "/ozon-parser/static/js/main.d520e680.chunk.js.map",
     "runtime-main.js": "/ozon-parser/static/js/runtime-main.6a8b8ea7.js",
     "runtime-main.js.map": "/ozon-parser/static/js/runtime-main.6a8b8ea7.js.map",
     "static/css/2.25127cbe.chunk.css": "/ozon-parser/static/css/2.25127cbe.chunk.css",
@@ -19,6 +19,6 @@
     "static/css/2.25127cbe.chunk.css",
     "static/js/2.f8b2b444.chunk.js",
     "static/css/main.2e043e20.chunk.css",
-    "static/js/main.28042369.chunk.js"
+    "static/js/main.d520e680.chunk.js"
   ]
 }
