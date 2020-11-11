@@ -1,0 +1,24 @@
+{
+  "files": {
+    "main.css": "/ozon-parser/static/css/main.2e043e20.chunk.css",
+    "main.js": "/ozon-parser/static/js/main.f18dba41.chunk.js",
+    "main.js.map": "/ozon-parser/static/js/main.f18dba41.chunk.js.map",
+    "runtime-main.js": "/ozon-parser/static/js/runtime-main.6a8b8ea7.js",
+    "runtime-main.js.map": "/ozon-parser/static/js/runtime-main.6a8b8ea7.js.map",
+    "static/css/2.25127cbe.chunk.css": "/ozon-parser/static/css/2.25127cbe.chunk.css",
+    "static/js/2.f8b2b444.chunk.js": "/ozon-parser/static/js/2.f8b2b444.chunk.js",
+    "static/js/2.f8b2b444.chunk.js.map": "/ozon-parser/static/js/2.f8b2b444.chunk.js.map",
+    "index.html": "/ozon-parser/index.html",
+    "static/css/2.25127cbe.chunk.css.map": "/ozon-parser/static/css/2.25127cbe.chunk.css.map",
+    "static/css/main.2e043e20.chunk.css.map": "/ozon-parser/static/css/main.2e043e20.chunk.css.map",
+    "static/js/2.f8b2b444.chunk.js.LICENSE.txt": "/ozon-parser/static/js/2.f8b2b444.chunk.js.LICENSE.txt",
+    "static/media/all.min.css": "/ozon-parser/static/media/fa-solid-900.46fdbd2d.woff"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.6a8b8ea7.js",
+    "static/css/2.25127cbe.chunk.css",
+    "static/js/2.f8b2b444.chunk.js",
+    "static/css/main.2e043e20.chunk.css",
+    "static/js/main.f18dba41.chunk.js"
+  ]
+}
