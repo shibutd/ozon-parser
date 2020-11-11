@@ -4,7 +4,6 @@ import axios, { CancelToken } from 'axios';
 import { motion } from 'framer-motion';
 import DropdownSubItem from './DropdownSubItem';
 import { getSubcategoriesUrl } from '../constants';
-import logo from '../assets/loading.svg';
 
 
 const DropdownItem = React.memo((props) => {
@@ -79,8 +78,8 @@ const DropdownItem = React.memo((props) => {
       >
         {Loading
           ? (
-            <div className="p-2 font-semibold bg-white text-gray-600">
-              <img src={logo} alt={'loading'} />
+            <div className="p-2 bg-white text-gray-600 text-xl">
+              <i className="fas fa-spinner animate-spin"></i>
             </div>)
           : (subItems.map(item => (
             <DropdownSubItem
