@@ -1,3 +1,7 @@
+# Ozon Parser
+
+Project available at: https://shibutd.github.io/ozon-parser/
+***
 Create WebApp preview and import preloaded data:
 ```
 docker-compose up -d --build
