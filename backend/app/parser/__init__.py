@@ -1,3 +1,4 @@
+import os
 import logging
 from typing import List, Dict
 
@@ -5,8 +6,11 @@ from .category_parser import CategoryParser, SubcategoryParser
 from .items_parser import ItemsParser
 
 
+log_filename = 'logs/parser.log'
+os.makedirs(os.path.dirname(log_filename), exist_ok=True)
+
 logging.basicConfig(
-    filename='logs/parser.log',
+    filename=log_filename,
     filemode='w',
     level=logging.DEBUG
 )
